@@ -38,6 +38,3 @@
 // - handleSessionExpiration()
 // - clearExpiredTokens()
 // - validateTokenFormat(token)
-
-
-

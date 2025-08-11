@@ -55,7 +55,7 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer(`http://localhost:${process.env.PORT}`, 'Development server - v1')
+    .addServer('http://localhost:3000', 'Development server - v1')
     .addServer('https://api.vision-tf.com/v1', 'Production server - v1')
     .build();
 
@@ -71,20 +71,16 @@ async function bootstrap() {
     },
   });
 
-  const port = process.env.PORT;
-  if (!port) {
-    throw new Error('PORT environment variable is required');
-  }
-  await app.listen(port);
+  await app.listen(process.env.PORT ?? 3000);
 
   console.log(
-    `Application is running on: http://localhost:${process.env.PORT}`,
+    `Application is running on: http://localhost:${process.env.PORT ?? 3000}`,
   );
   console.log(
-    `Swagger documentation available at: http://localhost:${process.env.PORT}/api`,
+    `Swagger documentation available at: http://localhost:${process.env.PORT ?? 3000}/api`,
   );
   console.log(
-    `API v1 endpoints available at: http://localhost:${process.env.PORT}/v1`,
+    `API v1 endpoints available at: http://localhost:${process.env.PORT ?? 3000}/v1`,
   );
 }
 void bootstrap();

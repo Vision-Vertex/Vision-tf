@@ -6,6 +6,3 @@
 // - Test clearAuthData function
 // - Test validatePassword function
 // - Test validateEmail function
-
-
-

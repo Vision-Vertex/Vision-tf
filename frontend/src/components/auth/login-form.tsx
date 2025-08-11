@@ -12,6 +12,3 @@
 // - Handle validation errors
 // - Handle API errors
 // - Add responsive design
-
-
-

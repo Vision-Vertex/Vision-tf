@@ -11,6 +11,3 @@
 // - getLocationFromIP(ipAddress)
 // - formatLastActivity(date)
 // - isCurrentSession(session)
-
-
-

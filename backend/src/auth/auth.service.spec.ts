@@ -701,7 +701,7 @@ describe('AuthService', () => {
       // Arrange
       prismaService.user.findUnique.mockResolvedValue(mockUser);
       twoFactorService.generateSecret.mockReturnValue({
-        secret: process.env.JWT_SECRET,
+        secret: 'test-secret',
         qrCodeUrl: 'test-qr-url',
       });
       twoFactorService.generateQRCode.mockResolvedValue('test-qr-code');
@@ -737,7 +737,7 @@ describe('AuthService', () => {
   describe('enable2fa', () => {
     it('should enable 2FA with valid code', async () => {
       // Arrange
-      const userWithSecret = { ...mockUser, twoFactorSecret: process.env.JWT_SECRET };
+      const userWithSecret = { ...mockUser, twoFactorSecret: 'test-secret' };
       prismaService.user.findUnique.mockResolvedValue(userWithSecret);
       twoFactorService.verifyToken.mockReturnValue(true);
       prismaService.user.update.mockResolvedValue({
@@ -762,7 +762,7 @@ describe('AuthService', () => {
       });
       expect(twoFactorService.verifyToken).toHaveBeenCalledWith(
         '123456',
-        process.env.JWT_SECRET,
+        'test-secret',
       );
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-123' },
@@ -781,7 +781,7 @@ describe('AuthService', () => {
 
     it('should throw error for invalid 2FA code', async () => {
       // Arrange
-      const userWithSecret = { ...mockUser, twoFactorSecret: process.env.JWT_SECRET };
+      const userWithSecret = { ...mockUser, twoFactorSecret: 'test-secret' };
       prismaService.user.findUnique.mockResolvedValue(userWithSecret);
       twoFactorService.verifyToken.mockReturnValue(false);
 
@@ -800,7 +800,7 @@ describe('AuthService', () => {
       const userWith2FA = {
         ...mockUser,
         twoFactorEnabled: true,
-        twoFactorSecret: process.env.JWT_SECRET,
+        twoFactorSecret: 'test-secret',
       };
       prismaService.user.findUnique.mockResolvedValue(userWith2FA);
       twoFactorService.verifyToken.mockReturnValue(true);
@@ -821,7 +821,7 @@ describe('AuthService', () => {
       });
       expect(twoFactorService.verifyToken).toHaveBeenCalledWith(
         '123456',
-        process.env.JWT_SECRET,
+        'test-secret',
       );
       expect(prismaService.user.update).toHaveBeenCalledWith({
         where: { id: 'user-123' },

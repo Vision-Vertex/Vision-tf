@@ -29,6 +29,3 @@
 // - AuditLog (id, userId, eventType, eventCategory, description, details, ipAddress, userAgent, severity, source, createdAt)
 // - SuspiciousActivity (id, userId, activityType, severity, description, details, ipAddress, userAgent, location, deviceFingerprint, riskScore, confidence, status, reviewedBy, reviewedAt, riskFactors)
 // - LoginPattern (id, userId, ipAddress, userAgent, location, loginTime, success, failureReason)
-
-
-

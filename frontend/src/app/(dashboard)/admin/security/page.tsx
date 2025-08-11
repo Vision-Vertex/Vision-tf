@@ -6,6 +6,3 @@
 // - Add security metrics
 // - Add action buttons
 // - Add responsive design
-
-
-

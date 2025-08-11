@@ -5,6 +5,3 @@
 // - Add terminate all sessions button
 // - Add session details modal
 // - Add responsive design
-
-
-

@@ -2,6 +2,3 @@
 // - getUserSessions()
 // - terminateSession(sessionToken)
 // - terminateAllSessions()
-
-
-

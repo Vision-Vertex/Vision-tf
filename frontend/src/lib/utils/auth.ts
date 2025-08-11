@@ -6,6 +6,3 @@
 // - clearAuthData() - Clear all auth data from storage
 // - validatePassword(password) - Validate password strength
 // - validateEmail(email) - Validate email format
-
-
-

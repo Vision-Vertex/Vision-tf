@@ -5,6 +5,3 @@
 // - clear() - Clear all localStorage
 // - setSecureItem(key, value) - Set encrypted item
 // - getSecureItem(key) - Get encrypted item
-
-
-

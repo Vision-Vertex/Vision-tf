@@ -7,6 +7,3 @@
 // - Test remember me functionality
 // - Test password visibility toggle
 // - Test responsive design
-
-
-

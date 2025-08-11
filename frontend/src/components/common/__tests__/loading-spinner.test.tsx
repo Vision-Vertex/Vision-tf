@@ -4,6 +4,3 @@
 // - Test different colors
 // - Test accessibility features
 // - Test loading states
-
-
-

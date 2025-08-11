@@ -7,7 +7,7 @@ describe('JwtStrategy', () => {
   let sessionService: jest.Mocked<SessionService>;
 
   beforeEach(async () => {
-    process.env.JWT_SECRET = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = 'test-secret';
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -133,7 +133,7 @@ describe('JwtStrategy', () => {
 
   describe('constructor', () => {
     it('should initialize with JWT secret from environment', () => {
-      process.env.JWT_SECRET = process.env.JWT_SECRET;
+      process.env.JWT_SECRET = 'test-secret';
       
       expect(() => new JwtStrategy(sessionService)).not.toThrow();
     });

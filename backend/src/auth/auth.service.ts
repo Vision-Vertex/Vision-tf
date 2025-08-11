@@ -206,22 +206,13 @@ export class AuthService {
       });
     }
 
-    // Create session with additional device data
+    // Create session
     const session = await this.sessionService.createSession(
       user.id,
       userAgent,
       ipAddress,
       dto.rememberMe || false,
-      {
-        screenResolution: dto.screenResolution,
-        timezone: dto.timezone,
-        language: dto.language,
-      },
     );
-
-    if (!session) {
-      throw new BadRequestException('Failed to create session');
-    }
 
     // Analyze login activity for suspicious behavior
     const loginContext: LoginContext = {
