@@ -1,0 +1,32 @@
+# Development Dockerfile with hot reload
+FROM node:20-alpine
+
+# Install dependencies for development (including curl for health checks)
+RUN apk add --no-cache libc6-compat curl
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build the application to ensure it compiles correctly
+RUN npm run build
+
+# Expose the correct port
+EXPOSE ${PORT}
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:${PORT}/v1/health || exit 1
+
+# Start in development mode with hot reload
+CMD ["npm", "run", "start:dev"]

@@ -1,0 +1,16 @@
+// Session Logic Implementation - Day 1 Afternoon Hour 3.2 (45 min)
+// - fetchUserSessions()
+// - handleSessionsSuccess(response)
+// - handleSessionsError(error)
+// - terminateSpecificSession(sessionToken)
+// - terminateAllSessions()
+// - handleTerminationSuccess()
+// - handleTerminationError(error)
+// - formatSessionData(sessions)
+// - getDeviceIcon(userAgent)
+// - getLocationFromIP(ipAddress)
+// - formatLastActivity(date)
+// - isCurrentSession(session)
+
+
+

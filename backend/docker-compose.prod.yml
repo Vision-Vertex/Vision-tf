@@ -1,0 +1,71 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: vision-tf-db-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: vision-tf-rabbitmq-prod
+    ports:
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"    # AMQP protocol
+      - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"  # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Application (Production)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vision-tf-backend-prod
+    ports:
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT}/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  default:
+    name: vision-tf-network-prod
