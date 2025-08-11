@@ -89,21 +89,28 @@ model RefreshToken {
 }
 
 model Session {
-  id             String   @id @default(uuid())
-  userId         String
-  sessionToken   String   @unique
-  expiresAt      DateTime
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  lastActivityAt DateTime @default(now())
-  userAgent      String?
-  ipAddress      String?
-  deviceName     String?
-  rememberMe     Boolean  @default(false)
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String   @id @default(uuid())
+  userId            String
+  sessionToken      String   @unique
+  expiresAt         DateTime
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  lastActivityAt    DateTime @default(now())
+  userAgent         String?
+  ipAddress         String?
+  deviceName        String?
+  rememberMe        Boolean  @default(false)
+  deviceFingerprint String?
+  isIncognito       Boolean  @default(false)
+  screenResolution  String?
+  timezone          String?
+  language          String?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sessionToken])
   @@index([userId, isActive])
+  @@index([userId, deviceFingerprint])
+  @@index([expiresAt, isActive])
 }
 
 model AuditLog {

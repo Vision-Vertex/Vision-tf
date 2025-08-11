@@ -1,37 +1,61 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DeviceFingerprintService, DeviceFingerprintData } from './device-fingerprint.service';
+import { SessionConfigService } from './session-config.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class SessionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private deviceFingerprintService: DeviceFingerprintService,
+    private sessionConfig: SessionConfigService,
+  ) {}
 
   async createSession(
     userId: string,
     userAgent: string,
     ipAddress: string,
     rememberMe: boolean = false,
-  ) {
-    // Check if user already has 3 active sessions
-    const activeSessions = await this.prisma.session.count({
+    additionalData?: {
+      screenResolution?: string;
+      timezone?: string;
+      language?: string;
+    },
+  ): Promise<{ id: string; sessionToken: string; userId: string; expiresAt: Date; isActive: boolean; createdAt: Date; lastActivityAt: Date; userAgent: string | null; ipAddress: string | null; deviceName: string | null; rememberMe: boolean; deviceFingerprint: string | null; isIncognito: boolean; screenResolution: string | null; timezone: string | null; language: string | null }> {
+    // Create device fingerprint
+    const fingerprintData: DeviceFingerprintData = {
+      userAgent,
+      ipAddress,
+      screenResolution: additionalData?.screenResolution,
+      timezone: additionalData?.timezone,
+      language: additionalData?.language,
+    };
+    
+    const deviceFingerprint = this.deviceFingerprintService.createFingerprint(fingerprintData);
+    const deviceInfo = this.deviceFingerprintService.parseDeviceInfo(userAgent);
+    const deviceName = this.deviceFingerprintService.createDeviceName(deviceInfo);
+
+    // Check for existing session with same device fingerprint
+    const existingSession = await this.prisma.session.findFirst({
       where: {
         userId,
+        deviceFingerprint,
         isActive: true,
         expiresAt: { gt: new Date() },
       },
     });
 
-    if (activeSessions >= 3) {
-      throw new BadRequestException(
-        'Maximum 3 active sessions allowed. Please logout from another device first.',
-      );
+    if (existingSession) {
+      // Extend existing session
+      return this.extendSession(existingSession.id, rememberMe);
     }
 
-    const sessionToken = this.generateSessionToken();
-    const expiresAt = rememberMe
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-      : new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Check session limit before creating new session
+    await this.enforceSessionLimit(userId);
 
-    const deviceName = this.parseDeviceName(userAgent);
+    const sessionToken = this.generateSessionToken();
+    const expiresAt = this.calculateExpiration(rememberMe);
 
     const session = await this.prisma.session.create({
       data: {
@@ -41,11 +65,73 @@ export class SessionService {
         userAgent,
         ipAddress,
         deviceName,
+        deviceFingerprint,
+        isIncognito: deviceInfo.isIncognito,
         rememberMe,
+        screenResolution: additionalData?.screenResolution,
+        timezone: additionalData?.timezone,
+        language: additionalData?.language,
       },
     });
 
     return session;
+  }
+
+  async extendSession(sessionId: string, rememberMe: boolean = false): Promise<{ id: string; sessionToken: string; userId: string; expiresAt: Date; isActive: boolean; createdAt: Date; lastActivityAt: Date; userAgent: string | null; ipAddress: string | null; deviceName: string | null; rememberMe: boolean; deviceFingerprint: string | null; isIncognito: boolean; screenResolution: string | null; timezone: string | null; language: string | null }> {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session || !session.isActive || session.expiresAt < new Date()) {
+      throw new BadRequestException('Session not found or expired');
+    }
+
+    // Check if session needs extension (within threshold)
+    const timeUntilExpiry = session.expiresAt.getTime() - Date.now();
+    const threshold = this.sessionConfig.sessionExtensionThreshold;
+
+    if (timeUntilExpiry < threshold) {
+      const newExpiresAt = this.calculateExpiration(rememberMe);
+      
+      await this.prisma.session.update({
+        where: { id: sessionId },
+        data: { 
+          expiresAt: newExpiresAt,
+          lastActivityAt: new Date(),
+        },
+      });
+
+      // Return updated session
+      const updatedSession = await this.prisma.session.findUnique({
+        where: { id: sessionId },
+      });
+      
+      if (!updatedSession) {
+        throw new BadRequestException('Failed to update session');
+      }
+      
+      return updatedSession;
+    }
+
+    // Just update last activity
+    await this.updateSessionActivity(session.sessionToken);
+    return session;
+  }
+
+  async enforceSessionLimit(userId: string) {
+    const activeSessions = await this.prisma.session.count({
+      where: {
+        userId,
+        isActive: true,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (activeSessions >= this.sessionConfig.maxSessionsPerUser) {
+      throw new BadRequestException(
+        'Maximum active sessions reached. Please logout from another device first.',
+      );
+    }
   }
 
   async terminateSession(sessionToken: string) {
@@ -95,6 +181,7 @@ export class SessionService {
     return session;
   }
 
+  @Cron(CronExpression.EVERY_HOUR)
   async cleanupExpiredSessions() {
     await this.prisma.session.updateMany({
       where: {
@@ -109,15 +196,11 @@ export class SessionService {
     return require('crypto').randomBytes(32).toString('hex');
   }
 
-  private parseDeviceName(userAgent: string): string {
-    // Simple device name parsing
-    if (userAgent.includes('iPhone')) return 'iPhone';
-    if (userAgent.includes('iPad')) return 'iPad';
-    if (userAgent.includes('Android')) return 'Android Device';
-    if (userAgent.includes('Chrome')) return 'Chrome Browser';
-    if (userAgent.includes('Firefox')) return 'Firefox Browser';
-    if (userAgent.includes('Safari')) return 'Safari Browser';
-    if (userAgent.includes('Edge')) return 'Edge Browser';
-    return 'Unknown Device';
+  private calculateExpiration(rememberMe: boolean): Date {
+    const duration = rememberMe 
+      ? this.sessionConfig.rememberMeExpires 
+      : this.sessionConfig.sessionExpires;
+    
+    return new Date(Date.now() + duration);
   }
 }

@@ -71,7 +71,11 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(process.env.PORT);
+  const port = process.env.PORT;
+  if (!port) {
+    throw new Error('PORT environment variable is required');
+  }
+  await app.listen(port);
 
   console.log(
     `Application is running on: http://localhost:${process.env.PORT}`,

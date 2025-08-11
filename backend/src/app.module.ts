@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -21,6 +22,7 @@ import { HealthModule } from './health/health.module';
         name: 'auth', // Special limit for auth endpoints
       },
     ]),
+    ScheduleModule.forRoot(),
     AuthModule,
     PrismaModule,
     CommonModule,
