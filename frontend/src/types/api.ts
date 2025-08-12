@@ -1,31 +1,30 @@
-// API Types - Hour 2 (1 hour)
+// API Types - Complete type definitions for frontend
 
-// 2.1 API Request Types (30 min)
-// - SignupRequest (firstname, lastname, username, email, password, role, preferredLanguage?, timezone?)
-// - LoginRequest (email, password, rememberMe?)
-// - VerifyEmailRequest (token)
-// - ForgotPasswordRequest (email)
-// - ResetPasswordRequest (token, newPassword)
-// - Enable2faRequest (code)
-// - Disable2faRequest (code)
-// - Verify2faRequest (code)
-// - RefreshTokenRequest (refreshToken)
-// - LogoutRequest (refreshToken?, sessionToken?)
-// - DeactivateAccountRequest (password)
-// - TerminateSessionRequest (sessionToken)
-// - ChangeUserRoleRequest (userId, newRole)
-// - DeactivateUserRequest (userId)
-// - AuditQueryRequest (eventType?, eventCategory?, severity?, limit?, offset?)
-// - SuspiciousActivityQueryRequest (activityType?, severity?, status?, limit?, offset?)
-// - UpdateSuspiciousActivityRequest (status, reviewNotes?)
+// Base API Response Type
+export interface ApiResponse<T> {
+  success: boolean;
+  statusCode: number;
+  message: string;
+  data: T;
+  timestamp: string;
+  path: string;
+}
 
-// 2.2 API Response Types (30 min)
-// - ApiResponse<T> (success, statusCode, message, data, timestamp, path)
-// - AuthResponse (accessToken, refreshToken, user, session)
-// - UserProfile (id, email, username, firstname, lastname, role, isEmailVerified)
-// - Profile (id, userId, displayName, bio, profilePictureUrl, skills, experience, availability, portfolioLinks, companyName, companyWebsite, billingAddress)
-// - Session (id, deviceName, userAgent, ipAddress, lastActivityAt, createdAt, expiresAt, isCurrentSession)
-// - TwoFactorSetupResponse (secret, qrCodeUrl, qrCode, backupCodes, instructions)
-// - AuditLog (id, userId, eventType, eventCategory, description, details, ipAddress, userAgent, severity, source, createdAt)
-// - SuspiciousActivity (id, userId, activityType, severity, description, details, ipAddress, userAgent, location, deviceFingerprint, riskScore, confidence, status, reviewedBy, reviewedAt, riskFactors)
-// - LoginPattern (id, userId, ipAddress, userAgent, location, loginTime, success, failureReason)
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  tokenType: string;
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    role: string;
+    isEmailVerified: boolean;
+  };
+  session?: {
+    sessionToken: string;
+    deviceName: string;
+    expiresAt: string;
+  };
+}
