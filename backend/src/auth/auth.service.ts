@@ -107,6 +107,7 @@ export class AuthService {
         companyName: null,
         companyWebsite: null,
         billingAddress: null,
+        updatedAt: new Date(),
       };
 
       // Apply role-specific customizations
