@@ -8,12 +8,15 @@ dotenv.config();
 // This script creates test users via the actual API endpoints
 
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.PORT}/v1`;
+const FIRST_ADMIN_CODE = process.env.FIRST_ADMIN_CODE;
+
 interface SeedUser {
   firstname: string;
   lastname: string;
   username: string;
   email: string;
   password: string;
+  role: 'CLIENT' | 'DEVELOPER' | 'ADMIN';
   middlename?: string;
   preferredLanguage?: string;
   timezone?: string;
@@ -43,8 +46,8 @@ async function waitForAPI(): Promise<void> {
   }
 }
 
-// Function to create a user via API
-async function createUser(user: SeedUser, userType: string): Promise<void> {
+// Function to create a regular user via API
+async function createRegularUser(user: SeedUser, userType: string): Promise<void> {
   try {
     console.log(`🔄 Creating ${userType} user: ${user.email}`);
     
@@ -69,8 +72,49 @@ async function createUser(user: SeedUser, userType: string): Promise<void> {
   }
 }
 
+// Function to create an admin user via API
+async function createAdminUser(user: SeedUser, userType: string): Promise<boolean> {
+  try {
+    console.log(`🔄 Creating ${userType} user: ${user.email}`);
+    
+    const adminSignupData = {
+      firstname: user.firstname,
+      lastname: user.lastname,
+      username: user.username,
+      email: user.email,
+      password: user.password,
+      invitationCode: FIRST_ADMIN_CODE
+    };
+    
+    const response = await axios.post(`${API_BASE_URL}/auth/signup/admin`, adminSignupData, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000
+    });
+    
+    if (response.status === 201) {
+      console.log(`✅ ${userType} user created successfully: ${user.email}`);
+      return true;
+    } else {
+      console.log(`⚠️  ${userType} user creation returned status: ${response.status}`);
+      return false;
+    }
+    
+  } catch (error: any) {
+    if (error.response?.status === 409) {
+      console.log(`✅ ${userType} user already exists: ${user.email}`);
+      return true;
+    } else if (error.response?.status === 400 && error.response?.data?.message === 'Invalid invitation code') {
+      console.log(`⏭️  Admin already exists in database, skipping admin creation`);
+      return true;
+    } else {
+      console.error(`❌ Failed to create ${userType} user:`, error.response?.data || error.message);
+      throw error;
+    }
+  }
+}
+
 // Function to get user data from environment variables
-function getUserFromEnv(prefix: string): SeedUser | null {
+function getUserFromEnv(prefix: string, role: 'CLIENT' | 'DEVELOPER' | 'ADMIN'): SeedUser | null {
   const firstname = process.env[`SEED_${prefix}_FIRSTNAME`];
   const lastname = process.env[`SEED_${prefix}_LASTNAME`];
   const username = process.env[`SEED_${prefix}_USERNAME`];
@@ -88,6 +132,7 @@ function getUserFromEnv(prefix: string): SeedUser | null {
     username,
     email,
     password,
+    role,
     middlename: process.env[`SEED_${prefix}_MIDDLENAME`] || undefined,
     preferredLanguage: process.env[`SEED_${prefix}_PREFERRED_LANGUAGE`] || 'en',
     timezone: process.env[`SEED_${prefix}_TIMEZONE`] || 'UTC'
@@ -102,27 +147,29 @@ async function main() {
     await waitForAPI();
     
     // Get users from environment variables
-    const adminUser = getUserFromEnv('ADMIN');
-    const developerUser = getUserFromEnv('DEVELOPER');
-    const clientUser = getUserFromEnv('CLIENT');
+    const adminUser = getUserFromEnv('ADMIN', 'ADMIN');
+    const developerUser = getUserFromEnv('DEVELOPER', 'DEVELOPER');
+    const clientUser = getUserFromEnv('CLIENT', 'CLIENT');
     
     // Create users via API
     if (adminUser) {
-      await createUser(adminUser, 'Admin');
+      await createAdminUser(adminUser, 'Admin');
     }
     
     if (developerUser) {
-      await createUser(developerUser, 'Developer');
+      await createRegularUser(developerUser, 'Developer');
     }
     
     if (clientUser) {
-      await createUser(clientUser, 'Client');
+      await createRegularUser(clientUser, 'Client');
     }
     
     console.log('🎉 Database seeding completed successfully!');
     console.log('');
-    console.log('📋 Test Users Created:');
-    if (adminUser) console.log(`   Admin: ${adminUser.email} / ${adminUser.password}`);
+    console.log('📋 Test Users Status:');
+    if (adminUser) {
+      console.log(`   Admin: ${adminUser.email} / ${adminUser.password}`);
+    }
     if (developerUser) console.log(`   Developer: ${developerUser.email} / ${developerUser.password}`);
     if (clientUser) console.log(`   Client: ${clientUser.email} / ${clientUser.password}`);
     console.log('');
