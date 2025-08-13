@@ -39,6 +39,7 @@ interface AuthActions {
   clearError: () => void;
   setUser: (user: UserProfile) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
+  setAccessToken: (accessToken: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
 }
@@ -60,6 +61,7 @@ export const useAuthStore = create<AuthStore>()(
 
       // Actions
       login: (accessToken: string, refreshToken: string, sessionToken: string, rememberMe?: boolean, user?: UserProfile) => {
+        console.log('Login called with:', { accessToken: !!accessToken, refreshToken: !!refreshToken, rememberMe });
         set({
           accessToken,
           refreshToken,
@@ -72,8 +74,8 @@ export const useAuthStore = create<AuthStore>()(
 
       signup: (user?: SignupUserData) => {
         set({
-          user: null, // Don't store signup user data as authenticated user
-          isAuthenticated: false, // User is not authenticated after signup until email verification and login
+          user: null,
+          isAuthenticated: false, 
           error: null,
         });
       },
@@ -109,6 +111,10 @@ export const useAuthStore = create<AuthStore>()(
         set({ accessToken, refreshToken });
       },
 
+      setAccessToken: (accessToken: string) => {
+        set({ accessToken });
+      },
+
       setLoading: (loading: boolean) => {
         set({ isLoading: loading });
       },
@@ -123,6 +129,7 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
+        sessionToken: state.sessionToken,
         isAuthenticated: state.isAuthenticated,
         rememberMe: state.rememberMe,
       }),

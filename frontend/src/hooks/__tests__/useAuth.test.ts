@@ -141,7 +141,8 @@ describe('useAuth Hook', () => {
       expect(mockAuthStore.login).toHaveBeenCalledWith(
         mockResponse.accessToken,
         mockResponse.refreshToken,
-        mockResponse.sessionToken
+        mockResponse.sessionToken,
+        false // rememberMe parameter
       );
       expect(mockAuthStore.setLoading).toHaveBeenCalledWith(false);
       expect(mockPush).toHaveBeenCalledWith('/');

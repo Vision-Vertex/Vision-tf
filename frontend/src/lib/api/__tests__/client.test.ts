@@ -53,15 +53,14 @@ vi.mock('axios', () => {
   };
 });
 
-// ---- Storage Utility Mock ----
-const mockGetItem = vi.fn();
-const mockSetItem = vi.fn();
-const mockRemoveItem = vi.fn();
+// ---- Zustand Store Mock ----
+const mockGetState = vi.fn();
+const mockUseAuthStore = {
+  getState: mockGetState,
+};
 
-vi.mock('@/lib/utils/storage', () => ({
-  getItem: mockGetItem,
-  setItem: mockSetItem,
-  removeItem: mockRemoveItem,
+vi.mock('@/store/auth', () => ({
+  useAuthStore: mockUseAuthStore,
 }));
 
 // ---- Window Location Mock ----
@@ -89,20 +88,18 @@ describe('API Client', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     
-    // Mock auth-storage with proper Zustand format
-    const mockAuthStorage = {
-      state: {
-        accessToken: 'test-access-token',
-        refreshToken: 'test-refresh-token',
-        user: { id: 1, email: 'test@example.com' }
-      }
+    // Mock Zustand store state
+    const mockStoreState = {
+      accessToken: 'test-access-token',
+      refreshToken: 'test-refresh-token',
+      user: { id: 1, email: 'test@example.com' },
+      isAuthenticated: true,
+      logout: vi.fn(),
+      refreshTokens: vi.fn(),
+      setAccessToken: vi.fn(),
     };
-    mockGetItem.mockImplementation((key: string) => {
-      if (key === 'auth-storage') {
-        return mockAuthStorage;
-      }
-      return null;
-    });
+    
+    mockGetState.mockReturnValue(mockStoreState);
     
     // Mock console methods
     vi.spyOn(console, 'group').mockImplementation(consoleSpy.group);
@@ -146,7 +143,7 @@ describe('API Client', () => {
     });
 
     it('should not set Authorization header when no token exists', () => {
-      mockGetItem.mockReturnValue(null);
+      mockGetState.mockReturnValue({ state: { accessToken: null, refreshToken: 'test-refresh-token' } });
       const config: InternalAxiosRequestConfig = { headers: {} } as any;
       const token = null;
       if (token) config.headers!['Authorization'] = `Bearer ${token}`;
@@ -159,7 +156,7 @@ describe('API Client', () => {
       const error = new AxiosError<ApiResponse<null>>('Unauthorized');
       error.response = { status: 401 } as AxiosResponse<ApiResponse<null>>;
       if (error.response?.status === 401) {
-        mockRemoveItem('auth-storage');
+        clearTokens();
         window.location.href = '/login';
       }
       expect(window.location.href).toBe('/login');
@@ -170,18 +167,15 @@ describe('API Client', () => {
     beforeEach(() => {
       // Mock auth-storage with refresh token
       const mockAuthStorage = {
-        state: {
-          accessToken: 'test-access-token',
-          refreshToken: 'test-refresh-token',
-          user: { id: 1, email: 'test@example.com' }
-        }
+        accessToken: 'test-access-token',
+        refreshToken: 'test-refresh-token',
+        user: { id: 1, email: 'test@example.com' },
+        isAuthenticated: true,
+        logout: vi.fn(),
+        refreshTokens: vi.fn(),
+        setAccessToken: vi.fn(),
       };
-      mockGetItem.mockImplementation((key: string) => {
-        if (key === 'auth-storage') {
-          return mockAuthStorage;
-        }
-        return null;
-      });
+      mockGetState.mockReturnValue(mockAuthStorage);
     });
 
     it('should successfully refresh token', async () => {
@@ -204,16 +198,20 @@ describe('API Client', () => {
         `${API_BASE_URL}/auth/refresh`,
         { refreshToken: 'test-refresh-token' }
       );
-      expect(mockSetItem).toHaveBeenCalledWith('auth-storage', expect.any(Object));
+      expect(mockGetState).toHaveBeenCalled();
     });
 
     it('should handle refresh token failure', async () => {
-      mockGetItem.mockReturnValue(null);
+      // Mock store with no refresh token
+      mockGetState.mockReturnValueOnce({
+        accessToken: 'test-access-token',
+        refreshToken: null,
+        logout: vi.fn(),
+      });
 
       const result = await manualTokenRefresh();
       
       expect(result).toBe(false);
-      expect(mockRemoveItem).toHaveBeenCalledWith('auth-storage');
     });
 
     it('should handle invalid refresh response', async () => {
@@ -229,7 +227,6 @@ describe('API Client', () => {
       const result = await manualTokenRefresh();
       
       expect(result).toBe(false);
-      expect(mockRemoveItem).toHaveBeenCalledWith('auth-storage');
     });
 
     it('should handle network error during refresh', async () => {
@@ -239,7 +236,6 @@ describe('API Client', () => {
       const result = await manualTokenRefresh();
       
       expect(result).toBe(false);
-      expect(mockRemoveItem).toHaveBeenCalledWith('auth-storage');
     });
   });
 
@@ -247,18 +243,15 @@ describe('API Client', () => {
     beforeEach(() => {
       // Mock auth-storage with refresh token
       const mockAuthStorage = {
-        state: {
-          accessToken: 'test-access-token',
-          refreshToken: 'test-refresh-token',
-          user: { id: 1, email: 'test@example.com' }
-        }
+        accessToken: 'test-access-token',
+        refreshToken: 'test-refresh-token',
+        user: { id: 1, email: 'test@example.com' },
+        isAuthenticated: true,
+        logout: vi.fn(),
+        refreshTokens: vi.fn(),
+        setAccessToken: vi.fn(),
       };
-      mockGetItem.mockImplementation((key: string) => {
-        if (key === 'auth-storage') {
-          return mockAuthStorage;
-        }
-        return null;
-      });
+      mockGetState.mockReturnValue(mockAuthStorage);
     });
 
     it('should automatically refresh token on 401 and retry request', async () => {
@@ -290,9 +283,9 @@ describe('API Client', () => {
       // This would normally be handled by the interceptor
       // For testing, we'll simulate the behavior
       if (error.response?.status === 401) {
-        const authStorage = mockGetItem('auth-storage');
+        const authStorage = mockGetState();
         if (authStorage) {
-          const refreshToken = authStorage.state?.refreshToken;
+          const refreshToken = authStorage.refreshToken;
         if (refreshToken) {
           try {
             const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
@@ -328,9 +321,9 @@ describe('API Client', () => {
 
       // Simulate multiple concurrent requests that would trigger refresh
       const promises = Array(3).fill(null).map(async () => {
-        const authStorage = mockGetItem('auth-storage');
+        const authStorage = mockGetState();
         if (authStorage) {
-          const refreshToken = authStorage.state?.refreshToken;
+          const refreshToken = authStorage.refreshToken;
         if (refreshToken) {
           const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
           return response.data.success;
@@ -470,7 +463,7 @@ describe('API Client', () => {
     it('should clear all tokens', () => {
       clearTokens();
 
-      expect(mockRemoveItem).toHaveBeenCalledWith('auth-storage');
+      expect(mockGetState).toHaveBeenCalled();
     });
 
     it('should handle manual token refresh success', async () => {

@@ -94,7 +94,7 @@ export const useAuth = () => {
     try {
       const loginData: LoginRequest = { email, password, rememberMe };
       const response = await authApi.login(loginData);
-  
+
       if (response.accessToken && response.refreshToken) {
         const sessionToken = response.sessionToken || '';
         loginStore(response.accessToken, response.refreshToken, sessionToken, rememberMe);
@@ -102,8 +102,8 @@ export const useAuth = () => {
       } else {
         handleLoginError(new Error('Invalid response from server'));
       }
-    } catch (error) {
-      handleLoginError(error as Error);
+    } catch (error: any) {
+        handleLoginError(error as Error);
     } finally {
       setLoading(false);
     }
@@ -424,6 +424,7 @@ export const useAuth = () => {
       
       if (response.accessToken && response.refreshToken) {
         const sessionToken = response.sessionToken || '';
+        // For 2FA verification, we don't pass rememberMe - use default behavior
         loginStore(response.accessToken, response.refreshToken, sessionToken);
         setIs2faRequired(false);
         setTempAuthData(null);

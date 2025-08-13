@@ -1,10 +1,11 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { getItem, setItem, removeItem } from '@/lib/utils/storage';
+import { useAuthStore } from '@/store/auth';
 
-export const API_BASE_URL = process.env.API_BASE_URL;
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // Debug logging configuration
-const DEBUG_MODE = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true';
+const DEBUG_MODE = process.env.NEXT_PUBLIC_NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true';
 
 // Token refresh state management
 let isRefreshing = false;
@@ -52,15 +53,17 @@ export const apiClient: AxiosInstance = axios.create({
 // Utility function to get tokens from Zustand store
 const getTokensFromStore = () => {
   try {
-    // Get the persisted state from localStorage
-    const authStorage = getItem('auth-storage');
-    if (authStorage) {
-      return {
-        accessToken: authStorage.state?.accessToken || null,
-        refreshToken: authStorage.state?.refreshToken || null,
-      };
-    }
-    return { accessToken: null, refreshToken: null };
+    const state = useAuthStore.getState();
+    const tokens = {
+      accessToken: state.accessToken || null,
+      refreshToken: state.refreshToken || null,
+    };
+    console.log('Getting tokens from store:', { 
+      hasAccessToken: !!tokens.accessToken, 
+      hasRefreshToken: !!tokens.refreshToken,
+      isAuthenticated: state.isAuthenticated 
+    });
+    return tokens;
   } catch (error) {
     console.error('Error reading tokens from store:', error);
     return { accessToken: null, refreshToken: null };
@@ -70,13 +73,12 @@ const getTokensFromStore = () => {
 // Utility function to update tokens in store
 const updateTokensInStore = (accessToken: string, refreshToken?: string) => {
   try {
-    const authStorage = getItem('auth-storage');
-    if (authStorage) {
-      authStorage.state.accessToken = accessToken;
-      if (refreshToken) {
-        authStorage.state.refreshToken = refreshToken;
-      }
-      setItem('auth-storage', authStorage);
+    const { refreshTokens, setAccessToken } = useAuthStore.getState();
+    if (refreshToken) {
+      refreshTokens(accessToken, refreshToken);
+    } else {
+      // If no new refresh token, just update access token
+      setAccessToken(accessToken);
     }
   } catch (error) {
     console.error('Error updating tokens in store:', error);
@@ -86,8 +88,12 @@ const updateTokensInStore = (accessToken: string, refreshToken?: string) => {
 // Token refresh function
 const refreshAccessToken = async (): Promise<string | null> => {
   try {
+    // Add a small delay to ensure tokens are properly stored after login
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const { refreshToken } = getTokensFromStore();
     if (!refreshToken) {
+      console.warn('No refresh token available - user may need to login again');
       throw new Error('No refresh token available');
     }
 
@@ -123,7 +129,8 @@ const refreshAccessToken = async (): Promise<string | null> => {
     });
     
     // Clear tokens on refresh failure
-    removeItem('auth-storage');
+    const { logout } = useAuthStore.getState();
+    logout();
     
     throw error;
   }
@@ -203,6 +210,17 @@ apiClient.interceptors.response.use(
 
     // Handle 401 responses with automatic token refresh
     if (error.response?.status === 401 && originalRequest) {
+      // Don't attempt token refresh for auth endpoints (login, signup, etc.)
+      const isAuthEndpoint = originalRequest.url?.includes('/auth/login') || 
+                            originalRequest.url?.includes('/auth/signup') ||
+                            originalRequest.url?.includes('/auth/forgot-password') ||
+                            originalRequest.url?.includes('/auth/reset-password');
+      
+      if (isAuthEndpoint) {
+        console.warn('401 on auth endpoint - not attempting token refresh');
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         // If already refreshing, queue this request
         return new Promise((resolve, reject) => {
@@ -229,7 +247,8 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null);
         
         // Clear all tokens and redirect to login
-      removeItem('auth-storage');
+      const { logout } = useAuthStore.getState();
+      logout();
       
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
@@ -302,7 +321,8 @@ export const manualTokenRefresh = async (): Promise<boolean> => {
 
 // Utility function to clear all tokens
 export const clearTokens = (): void => {
-  removeItem('auth-storage');
+  const { logout } = useAuthStore.getState();
+  logout();
 };
 
 export default apiClient;
