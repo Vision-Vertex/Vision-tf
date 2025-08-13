@@ -41,7 +41,10 @@ model User {
   sessions                 Session[]
   suspiciousActivities     SuspiciousActivity[]
   loginPatterns            UserLoginPattern[]
+  invitationsCreated       Invitation[] @relation("InvitationCreator")
+  invitationsUsed          Invitation[] @relation("InvitationUser")
 }
+
 
 model Profile {
   id                 String    @id @default(uuid())
@@ -72,11 +75,37 @@ model Profile {
   projectPreferences Json?
   socialLinks        Json?
   systemRole         String?
-  updatedAt          DateTime
+  updatedAt          DateTime  @updatedAt
   workPreferences    Json?
   portfolioLinks     Json?
   billingAddress     Json?
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  email       String    // Email of invited user
+  code        String    @unique // Unique invitation code
+  role        UserRole  // Role being invited for
+  maxUses     Int       @default(1) // How many times can be used
+  usedCount   Int       @default(0) // How many times used
+  expiresAt   DateTime  // When invitation expires
+  createdBy   String    // Admin who created invitation
+  createdAt   DateTime  @default(now())
+  used        Boolean   @default(false) // Has been used
+  usedAt      DateTime? // When was used
+  usedBy      String?   // User ID who used it
+  
+  // Relations
+  creator     User      @relation("InvitationCreator", fields: [createdBy], references: [id])
+  user        User?     @relation("InvitationUser", fields: [usedBy], references: [id])
+
+  @@index([email])
+  @@index([code])
+  @@index([role])
+  @@index([expiresAt])
+  @@index([createdBy])
+  @@index([used])
 }
 
 model AuthProvider {

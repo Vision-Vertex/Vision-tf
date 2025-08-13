@@ -11,3 +11,5 @@ export * from './terminate-sessions.dto';
 export * from './audit-query.dto';
 export * from './suspicious-activity-query.dto';
 export * from './update-suspicious-activity.dto';
+export * from './admin-signup.dto';
+export * from './invite-admin.dto';

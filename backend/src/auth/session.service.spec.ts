@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { SessionService } from './session.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { DeviceFingerprintService } from './device-fingerprint.service';
+import { SessionConfigService } from './session-config.service';
 
 // Mock crypto module
 jest.mock('crypto', () => ({
@@ -11,6 +13,8 @@ jest.mock('crypto', () => ({
 describe('SessionService', () => {
   let service: SessionService;
   let prismaService: jest.Mocked<PrismaService>;
+  let deviceFingerprintService: jest.Mocked<DeviceFingerprintService>;
+  let sessionConfigService: jest.Mocked<SessionConfigService>;
   let mockCrypto: any;
 
   beforeEach(async () => {
@@ -22,7 +26,19 @@ describe('SessionService', () => {
         updateMany: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
       },
+    };
+
+    const mockDeviceFingerprintService = {
+      createFingerprint: jest.fn(),
+      parseDeviceInfo: jest.fn(),
+      createDeviceName: jest.fn(),
+    };
+
+    const mockSessionConfigService = {
+      sessionExtensionThreshold: 300000, // 5 minutes
+      maxSessionsPerUser: 5,
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -32,11 +48,21 @@ describe('SessionService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: DeviceFingerprintService,
+          useValue: mockDeviceFingerprintService,
+        },
+        {
+          provide: SessionConfigService,
+          useValue: mockSessionConfigService,
+        },
       ],
     }).compile();
 
     service = module.get<SessionService>(SessionService);
     prismaService = module.get(PrismaService);
+    deviceFingerprintService = module.get(DeviceFingerprintService);
+    sessionConfigService = module.get(SessionConfigService);
 
     // Get mocked crypto
     mockCrypto = require('crypto');
@@ -45,6 +71,18 @@ describe('SessionService', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
+
+  // Helper function to setup device fingerprint mocks
+  const setupDeviceFingerprintMocks = (deviceName = 'Chrome Browser') => {
+    deviceFingerprintService.createFingerprint.mockReturnValue('fingerprint-123');
+    deviceFingerprintService.parseDeviceInfo.mockReturnValue({
+      browser: 'Chrome',
+      os: 'Windows',
+      device: 'Desktop',
+      isIncognito: false,
+    });
+    deviceFingerprintService.createDeviceName.mockReturnValue(deviceName);
+  };
 
   describe('createSession', () => {
     const userId = 'user-123';
@@ -65,9 +103,18 @@ describe('SessionService', () => {
         deviceName: 'Chrome Browser',
         rememberMe: false,
         isActive: true,
+        deviceFingerprint: 'fingerprint-123',
+        isIncognito: false,
+        screenResolution: null,
+        timezone: null,
+        language: null,
+        createdAt: new Date(),
+        lastActivityAt: new Date(),
       };
 
       prismaService.session.count.mockResolvedValue(2);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks();
       mockCrypto.randomBytes.mockReturnValue(Buffer.from('session-token-123'));
       prismaService.session.create.mockResolvedValue(mockSession as any);
 
@@ -90,8 +137,13 @@ describe('SessionService', () => {
           expiresAt: expect.any(Date),
           userAgent,
           ipAddress,
-          deviceName: 'Unknown Device',
+          deviceName: 'Chrome Browser',
+          deviceFingerprint: 'fingerprint-123',
+          isIncognito: false,
           rememberMe: false,
+          screenResolution: undefined,
+          timezone: undefined,
+          language: undefined,
         },
       });
       expect(result).toEqual(mockSession);
@@ -113,6 +165,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(1);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks();
       mockCrypto.randomBytes.mockReturnValue(Buffer.from('session-token-456'));
       prismaService.session.create.mockResolvedValue(mockSession as any);
 
@@ -132,8 +186,13 @@ describe('SessionService', () => {
           expiresAt: expect.any(Date),
           userAgent,
           ipAddress,
-          deviceName: 'Unknown Device',
+          deviceName: 'Chrome Browser',
+          deviceFingerprint: 'fingerprint-123',
+          isIncognito: false,
           rememberMe: true,
+          screenResolution: undefined,
+          timezone: undefined,
+          language: undefined,
         },
       });
       expect(result.rememberMe).toBe(true);
@@ -141,7 +200,8 @@ describe('SessionService', () => {
 
     it('should throw error when user has maximum active sessions', async () => {
       // Arrange
-      prismaService.session.count.mockResolvedValue(3);
+      prismaService.session.count.mockResolvedValue(5); // maxSessionsPerUser is 5
+      setupDeviceFingerprintMocks();
 
       // Act & Assert
       await expect(
@@ -171,6 +231,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks('iPhone');
       mockCrypto.randomBytes.mockReturnValue(Buffer.from('session-token-789'));
       prismaService.session.create.mockResolvedValue(mockSession as any);
 
@@ -202,6 +264,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks('Unknown Device');
       mockCrypto.randomBytes.mockReturnValue(
         Buffer.from('session-token-unknown'),
       );
@@ -523,6 +587,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks('iPhone');
       mockCrypto.randomBytes.mockReturnValue(
         Buffer.from('session-token-iphone'),
       );
@@ -551,6 +617,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks('iPad');
       mockCrypto.randomBytes.mockReturnValue(Buffer.from('session-token-ipad'));
       prismaService.session.create.mockResolvedValue(mockSession as any);
 
@@ -577,6 +645,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks('Android Device');
       mockCrypto.randomBytes.mockReturnValue(
         Buffer.from('session-token-android'),
       );
@@ -606,6 +676,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks('Firefox Browser');
       mockCrypto.randomBytes.mockReturnValue(
         Buffer.from('session-token-firefox'),
       );
@@ -635,6 +707,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks('Safari Browser');
       mockCrypto.randomBytes.mockReturnValue(
         Buffer.from('session-token-safari'),
       );
@@ -664,6 +738,8 @@ describe('SessionService', () => {
       };
 
       prismaService.session.count.mockResolvedValue(0);
+      prismaService.session.findFirst.mockResolvedValue(null);
+      setupDeviceFingerprintMocks();
       mockCrypto.randomBytes.mockReturnValue(Buffer.from('session-token-edge'));
       prismaService.session.create.mockResolvedValue(mockSession as any);
 

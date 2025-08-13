@@ -4,8 +4,10 @@ import {
   IsOptional,
   MinLength,
   Matches,
+  IsEnum,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 
 export class SignupDto {
   @ApiProperty({
@@ -106,4 +108,12 @@ export class SignupDto {
   @IsOptional()
   @IsString()
   timezone?: string;
+
+  @ApiProperty({
+    description: 'User role (CLIENT or DEVELOPER only)',
+    example: 'CLIENT',
+    enum: [UserRole.CLIENT, UserRole.DEVELOPER],
+  })
+  @IsEnum(UserRole, { message: 'Role must be either CLIENT or DEVELOPER' })
+  role: UserRole;
 }

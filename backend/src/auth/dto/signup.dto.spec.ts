@@ -1,5 +1,6 @@
 import { validate } from 'class-validator';
 import { SignupDto } from './signup.dto';
+import { UserRole } from '@prisma/client';
 
 describe('SignupDto', () => {
   describe('validation', () => {
@@ -11,6 +12,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -28,6 +30,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
       signupDto.preferredLanguage = 'en';
       signupDto.timezone = 'UTC';
 
@@ -42,17 +45,18 @@ describe('SignupDto', () => {
       // Arrange
       const signupDto = new SignupDto();
       signupDto.firstname = 'John';
-      // Missing lastname, username, email, password
+      // Missing lastname, username, email, password, role
 
       // Act
       const errors = await validate(signupDto);
 
       // Assert
-      expect(errors).toHaveLength(4);
+      expect(errors).toHaveLength(5);
       expect(errors.some((e) => e.property === 'lastname')).toBe(true);
       expect(errors.some((e) => e.property === 'username')).toBe(true);
       expect(errors.some((e) => e.property === 'email')).toBe(true);
       expect(errors.some((e) => e.property === 'password')).toBe(true);
+      expect(errors.some((e) => e.property === 'role')).toBe(true);
     });
 
     it('should fail validation with invalid email format', async () => {
@@ -63,6 +67,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'invalid-email';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -81,6 +86,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -99,6 +105,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -117,6 +124,7 @@ describe('SignupDto', () => {
       signupDto.username = 'jd'; // Too short
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -135,6 +143,7 @@ describe('SignupDto', () => {
       signupDto.username = 'john-doe'; // Contains hyphen
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -153,6 +162,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'weak'; // Too weak
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -171,6 +181,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'securepass123!'; // No uppercase
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -189,6 +200,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SECUREPASS123!'; // No lowercase
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -207,6 +219,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass!'; // No number
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -225,6 +238,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123'; // No special character
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -243,6 +257,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!'; // Valid password
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -270,6 +285,7 @@ describe('SignupDto', () => {
         signupDto.username = 'johndoe123';
         signupDto.email = 'john.doe@example.com';
         signupDto.password = password;
+        signupDto.role = UserRole.CLIENT;
 
         // Act
         const errors = await validate(signupDto);
@@ -298,6 +314,7 @@ describe('SignupDto', () => {
         signupDto.username = username;
         signupDto.email = 'john.doe@example.com';
         signupDto.password = 'SecurePass123!';
+        signupDto.role = UserRole.CLIENT;
 
         // Act
         const errors = await validate(signupDto);
@@ -349,6 +366,7 @@ describe('SignupDto', () => {
         signupDto.username = username;
         signupDto.email = 'john.doe@example.com';
         signupDto.password = 'SecurePass123!';
+        signupDto.role = UserRole.CLIENT;
 
         // Act
         const errors = await validate(signupDto);
@@ -382,6 +400,7 @@ describe('SignupDto', () => {
         signupDto.username = 'johndoe123';
         signupDto.email = email;
         signupDto.password = 'SecurePass123!';
+        signupDto.role = UserRole.CLIENT;
 
         // Act
         const errors = await validate(signupDto);
@@ -414,6 +433,7 @@ describe('SignupDto', () => {
         signupDto.username = 'johndoe123';
         signupDto.email = email;
         signupDto.password = 'SecurePass123!';
+        signupDto.role = UserRole.CLIENT;
 
         // Act
         const errors = await validate(signupDto);
@@ -433,17 +453,19 @@ describe('SignupDto', () => {
       signupDto.username = '';
       signupDto.email = '';
       signupDto.password = '';
+      // role is undefined
 
       // Act
       const errors = await validate(signupDto);
 
       // Assert
-      expect(errors).toHaveLength(5);
+      expect(errors).toHaveLength(6);
       expect(errors.some((e) => e.property === 'firstname')).toBe(true);
       expect(errors.some((e) => e.property === 'lastname')).toBe(true);
       expect(errors.some((e) => e.property === 'username')).toBe(true);
       expect(errors.some((e) => e.property === 'email')).toBe(true);
       expect(errors.some((e) => e.property === 'password')).toBe(true);
+      expect(errors.some((e) => e.property === 'role')).toBe(true);
     });
 
     it('should handle whitespace-only values', async () => {
@@ -454,15 +476,17 @@ describe('SignupDto', () => {
       signupDto.username = '   ';
       signupDto.email = '   ';
       signupDto.password = '   ';
+      // role is undefined
 
       // Act
       const errors = await validate(signupDto);
 
       // Assert
-      expect(errors).toHaveLength(3);
+      expect(errors).toHaveLength(4);
       expect(errors.some((e) => e.property === 'username')).toBe(true);
       expect(errors.some((e) => e.property === 'email')).toBe(true);
       expect(errors.some((e) => e.property === 'password')).toBe(true);
+      expect(errors.some((e) => e.property === 'role')).toBe(true);
     });
 
     it('should handle very long values', async () => {
@@ -473,6 +497,7 @@ describe('SignupDto', () => {
       signupDto.username = 'A'.repeat(1000);
       signupDto.email = 'A'.repeat(1000) + '@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -492,6 +517,7 @@ describe('SignupDto', () => {
       signupDto.username = 'jose_garcia';
       signupDto.email = 'josé.garcía@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -508,6 +534,7 @@ describe('SignupDto', () => {
       signupDto.username = 'oconnor_vdb';
       signupDto.email = 'oconnor@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
 
       // Act
       const errors = await validate(signupDto);
@@ -526,6 +553,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
       // No optional fields set
 
       // Act
@@ -543,6 +571,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
       signupDto.middlename = '';
       signupDto.preferredLanguage = '';
       signupDto.timezone = '';
@@ -562,6 +591,7 @@ describe('SignupDto', () => {
       signupDto.username = 'johndoe123';
       signupDto.email = 'john.doe@example.com';
       signupDto.password = 'SecurePass123!';
+      signupDto.role = UserRole.CLIENT;
       signupDto.middlename = 'Michael';
       signupDto.preferredLanguage = 'en';
       signupDto.timezone = 'America/New_York';

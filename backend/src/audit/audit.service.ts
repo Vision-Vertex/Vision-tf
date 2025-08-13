@@ -497,4 +497,28 @@ export class AuditService {
       },
     });
   }
+
+  // Admin invitation events
+  async logAdminInvitationCreated(
+    adminUserId: string,
+    invitedEmail: string,
+    invitationId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    await this.log({
+      userId: adminUserId,
+      eventType: AuditEventType.USER_REGISTERED, // Using existing event type
+      eventCategory: AuditEventCategory.USER_MANAGEMENT,
+      description: `Admin invitation created for ${invitedEmail}`,
+      details: {
+        invitedEmail,
+        invitationId,
+        action: 'admin_invitation_created',
+      },
+      ipAddress,
+      userAgent,
+      severity: AuditSeverity.INFO,
+    });
+  }
 }

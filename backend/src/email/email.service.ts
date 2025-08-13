@@ -25,4 +25,14 @@ export class EmailService {
     // Simulate async operation
     await new Promise(resolve => setTimeout(resolve, 100));
   }
+
+  async sendAdminInvitationEmail(email: string, invitationCode: string, message?: string): Promise<void> {
+    // TODO: Implement actual email sending logic
+    console.log(`Admin invitation email sent to ${email} with code: ${invitationCode}`);
+    if (message) {
+      console.log(`Custom message: ${message}`);
+    }
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
 }

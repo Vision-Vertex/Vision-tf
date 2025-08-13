@@ -1,9 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Injectable,
   UnauthorizedException,
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -20,6 +24,8 @@ import { Enable2faDto } from './dto/enable-2fa.dto';
 import { Verify2faDto } from './dto/verify-2fa.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
+import { AdminSignupDto } from './dto/admin-signup.dto';
+import { InviteAdminDto } from './dto/invite-admin.dto';
 import { SessionService } from './session.service';
 import { AuditService } from '../audit/audit.service';
 import {
@@ -30,13 +36,6 @@ import { SuspiciousActivityStatus } from '@prisma/client';
 import {
   SuccessResponse,
   CreatedResponse,
-  AuthResponse,
-  TwoFactorSetupResponse,
-  UserProfile,
-  SessionInfo,
-  AuditLogEntry,
-  SuspiciousActivity,
-  LoginPattern,
 } from '../common/dto/api-response.dto';
 
 @Injectable()
@@ -52,6 +51,13 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupDto) {
+    // Validate that only CLIENT and DEVELOPER roles are allowed for regular signup
+    if (dto.role === 'ADMIN') {
+      throw new BadRequestException(
+        'Admin users must use the admin signup endpoint',
+      );
+    }
+
     const existing = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: dto.email }, { username: dto.username }],
@@ -76,22 +82,6 @@ export class AuthService {
 
       // Create profile with role-specific defaults
       const displayName = `${dto.firstname} ${dto.lastname}`.trim();
-      
-      // Base profile data with proper typing
-      const profileData = {
-        userId: user.id,
-        displayName,
-        bio: null as string | null,
-        profilePictureUrl: null as string | null,
-        chatLastReadAt: null as Date | null,
-        skills: [] as string[],
-        experience: null as number | null,
-        availability: null as any,
-        portfolioLinks: [] as string[],
-        companyName: null as string | null,
-        companyWebsite: null as string | null,
-        billingAddress: null as string | null,
-      };
 
       // Prepare profile data with role-specific defaults
       const profileCreateData: any = {
@@ -138,7 +128,10 @@ export class AuthService {
     );
 
     // Log user registration
-    await this.auditService.logUserRegistered(result.user.id, result.user.email);
+    await this.auditService.logUserRegistered(
+      result.user.id,
+      result.user.email,
+    );
 
     return new CreatedResponse(
       'User registered successfully. Please check your email to verify your account.',
@@ -153,6 +146,382 @@ export class AuthService {
         },
       },
     );
+  }
+
+  async signupAdmin(dto: AdminSignupDto) {
+    // Enhanced uniqueness check with specific error messages
+    const existingEmail = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingEmail) {
+      throw new ConflictException('Email address is already registered');
+    }
+
+    const existingUsername = await this.prisma.user.findUnique({
+      where: { username: dto.username },
+    });
+
+    if (existingUsername) {
+      throw new ConflictException('Username is already taken');
+    }
+
+    // Check if any admin exists for bootstrap logic
+    const adminExists = await this.prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+    });
+
+    if (!adminExists) {
+      // First admin - validate against env code
+      if (dto.invitationCode !== process.env.FIRST_ADMIN_CODE) {
+        throw new BadRequestException('Invalid first admin setup code');
+      }
+
+      console.log('🔧 Setup mode: Creating first admin user');
+      return this.createAdminUser(dto);
+    }
+
+    // Subsequent admin creation - validate invitation
+    return this.createSubsequentAdmin(dto);
+  }
+
+  private async createAdminUser(dto: AdminSignupDto) {
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+
+    // Destructure DTO to exclude invitationCode which is not part of User model
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { invitationCode, ...userData } = dto;
+
+    const result = await this.prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.create({
+        data: {
+          ...userData,
+          password: hashedPassword,
+          role: 'ADMIN',
+          emailVerificationToken,
+          emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          isEmailVerified: true, // Auto-verify first admin
+        },
+      });
+
+      // Create admin profile with admin-specific defaults
+      const profile = await prisma.profile.create({
+        data: {
+          userId: user.id,
+          displayName: `${dto.firstname} ${dto.lastname}`.trim(),
+          companyName: 'Vision-TF System',
+          bio: null,
+          profilePictureUrl: null,
+          chatLastReadAt: null,
+          skills: [],
+          experience: null,
+          availability: undefined,
+          portfolioLinks: [],
+          companyWebsite: null,
+          billingAddress: undefined,
+        },
+      });
+
+      return { user, profile };
+    });
+
+    // Admin users are auto-verified, no need to send verification email
+    // await this.emailService.sendEmailVerification(
+    //   result.user.email,
+    //   emailVerificationToken,
+    // );
+
+    // Log admin creation
+    await this.auditService.logUserRegistered(
+      result.user.id,
+      result.user.email,
+    );
+
+    return new CreatedResponse(
+      'Admin created successfully! Email automatically verified. Remember to disable setup mode.',
+      {
+        id: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
+        role: result.user.role,
+        isEmailVerified: result.user.isEmailVerified,
+        profile: {
+          displayName: result.profile.displayName,
+          role: result.user.role,
+        },
+      },
+    );
+  }
+
+  private async createSubsequentAdmin(dto: AdminSignupDto) {
+    // Reject if using the setup code
+    if (dto.invitationCode === process.env.FIRST_ADMIN_CODE) {
+      throw new BadRequestException('Invalid invitation code');
+    }
+
+    // First check if there's any invitation for this email
+    const emailInvitation = await this.prisma.invitation.findFirst({
+      where: {
+        email: dto.email,
+        role: 'ADMIN',
+        expiresAt: { gt: new Date() },
+        used: false,
+      },
+    });
+
+    if (!emailInvitation) {
+      throw new BadRequestException('No invitation sent to this email');
+    }
+
+    // Now check if the invitation code matches
+    if (emailInvitation.code !== dto.invitationCode) {
+      throw new BadRequestException('Invalid invitation code');
+    }
+
+    // Create admin and mark invitation as used
+    const result = await this.createAdminUser(dto);
+
+    await this.prisma.invitation.update({
+      where: { id: emailInvitation.id },
+      data: {
+        used: true,
+        usedAt: new Date(),
+        usedBy: result.data?.id,
+      },
+    });
+
+    return result;
+  }
+
+  async inviteAdmin(
+    dto: InviteAdminDto,
+    adminUserId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    // Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      if (existingUser.role === 'ADMIN') {
+        throw new ConflictException('User is already an admin');
+      } else {
+        throw new ConflictException(
+          'User already exists with a different role. Please change their role instead.',
+        );
+      }
+    }
+
+    // Check if there's any invitation (used or unused) for this email
+    const anyInvitation = await this.prisma.invitation.findFirst({
+      where: {
+        email: dto.email,
+        role: 'ADMIN',
+      },
+    });
+
+    if (anyInvitation) {
+      if (anyInvitation.used) {
+        throw new ConflictException(
+          'User has already signed up using an invitation for this email',
+        );
+      } else {
+        throw new ConflictException(
+          'An active invitation already exists for this email',
+        );
+      }
+    }
+
+    const invitationCode = crypto.randomBytes(16).toString('hex');
+
+    // Create invitation record
+    const invitation = await this.prisma.invitation.create({
+      data: {
+        email: dto.email,
+        code: invitationCode,
+        role: 'ADMIN',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        createdBy: adminUserId,
+      },
+    });
+
+    // Log invitation creation
+    console.log(
+      `Admin invitation sent to ${dto.email} with code: ${invitationCode}`,
+    );
+
+    // Log invitation creation
+    await this.auditService.logAdminInvitationCreated(
+      adminUserId,
+      dto.email,
+      invitation.id,
+      ipAddress,
+      userAgent,
+    );
+
+    return new SuccessResponse('Admin invitation sent successfully', {
+      invitationId: invitation.id,
+      email: dto.email,
+      expiresAt: invitation.expiresAt,
+    });
+  }
+
+  async resendInvitation(
+    invitationId: string,
+    adminUserId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    // Find the invitation
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    // Check if invitation is already used
+    if (invitation.used) {
+      throw new BadRequestException(
+        'User has already signed up using this invitation',
+      );
+    }
+
+    // Check if invitation is expired
+    if (invitation.expiresAt < new Date()) {
+      throw new BadRequestException('Invitation has expired');
+    }
+
+    // Check if user already exists (in case they signed up without using the invitation)
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: invitation.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException(
+        'User has already signed up with this email',
+      );
+    }
+
+    // Generate new invitation code
+    const newInvitationCode = crypto.randomBytes(16).toString('hex');
+
+    // Update invitation with new code and extend expiration
+    const updatedInvitation = await this.prisma.invitation.update({
+      where: { id: invitationId },
+      data: {
+        code: newInvitationCode,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      },
+    });
+
+    // Log invitation resend
+    console.log(
+      `Admin invitation resent to ${invitation.email} with new code: ${newInvitationCode}`,
+    );
+
+    // Log invitation resend
+    await this.auditService.logAdminInvitationCreated(
+      adminUserId,
+      invitation.email,
+      invitation.id,
+      ipAddress,
+      userAgent,
+    );
+
+    return new SuccessResponse('Admin invitation resent successfully', {
+      invitationId: updatedInvitation.id,
+      email: updatedInvitation.email,
+      expiresAt: updatedInvitation.expiresAt,
+    });
+  }
+
+  async deleteInvitation(
+    invitationId: string,
+    adminUserId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    // Find the invitation
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    // Check if invitation is already used
+    if (invitation.used) {
+      throw new BadRequestException(
+        'Cannot delete an invitation that has already been used',
+      );
+    }
+
+    // Delete the invitation
+    await this.prisma.invitation.delete({
+      where: { id: invitationId },
+    });
+
+    // Log invitation deletion
+    await this.auditService.log({
+      userId: adminUserId,
+      eventType: 'USER_DELETED', // Using existing event type
+      eventCategory: 'USER_MANAGEMENT',
+      description: `Admin invitation deleted for ${invitation.email}`,
+      details: {
+        invitationId,
+        email: invitation.email,
+        action: 'admin_invitation_deleted',
+      },
+      ipAddress,
+      userAgent,
+      severity: 'INFO',
+    });
+
+    return new SuccessResponse('Admin invitation deleted successfully');
+  }
+
+  async getInvitations(adminUserId: string) {
+    const invitations = await this.prisma.invitation.findMany({
+      where: {
+        createdBy: adminUserId,
+        role: 'ADMIN',
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    return new SuccessResponse('Invitations retrieved successfully', {
+      invitations: invitations.map((inv) => ({
+        id: inv.id,
+        email: inv.email,
+        role: inv.role,
+        used: inv.used,
+        usedAt: inv.usedAt,
+        expiresAt: inv.expiresAt,
+        createdAt: inv.createdAt,
+        usedBy: inv.user
+          ? {
+              id: inv.user.id,
+              email: inv.user.email,
+              username: inv.user.username,
+            }
+          : null,
+      })),
+    });
   }
 
   async login(dto: LoginDto, userAgent: string, ipAddress: string) {
