@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthService } from './auth.service';
@@ -11,12 +12,13 @@ import { AuditModule } from '../audit/audit.module';
 import { SecurityModule } from '../security/security.module';
 import { TwoFactorService } from './two-factor.service';
 import { SessionService } from './session.service';
-import { DeviceFingerprintService } from './device-fingerprint.service';
 import { SessionConfigService } from './session-config.service';
+import { DeviceFingerprintService } from './device-fingerprint.service';
 import { RolesGuard } from './guards/roles.guard';
 import { AuthGuardWithRoles } from './guards/auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
+dotenv.config();
 @Module({
   imports: [
     ConfigModule,
@@ -35,8 +37,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
     JwtStrategy,
     TwoFactorService,
     SessionService,
-    DeviceFingerprintService,
     SessionConfigService,
+    DeviceFingerprintService,
     RolesGuard,
     AuthGuardWithRoles,
     JwtAuthGuard,

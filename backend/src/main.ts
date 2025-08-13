@@ -1,8 +1,10 @@
+import dotenv from 'dotenv';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 
+dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
@@ -55,7 +57,7 @@ async function bootstrap() {
       },
       'JWT-auth',
     )
-    .addServer('http://localhost:3000', 'Development server - v1')
+    .addServer(`http://localhost:${process.env.PORT}`, 'Development server - v1')
     .addServer('https://api.vision-tf.com/v1', 'Production server - v1')
     .build();
 
@@ -71,16 +73,19 @@ async function bootstrap() {
     },
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  if (!process.env.PORT) {
+    throw new Error('PORT is not set');
+  }
+  await app.listen(process.env.PORT);
 
   console.log(
-    `Application is running on: http://localhost:${process.env.PORT ?? 3000}`,
+    `Application is running on: http://localhost:${process.env.PORT}`,
   );
   console.log(
-    `Swagger documentation available at: http://localhost:${process.env.PORT ?? 3000}/api`,
+    `Swagger documentation available at: http://localhost:${process.env.PORT}/api`,
   );
   console.log(
-    `API v1 endpoints available at: http://localhost:${process.env.PORT ?? 3000}/v1`,
+    `API v1 endpoints available at: http://localhost:${process.env.PORT}/v1`,
   );
 }
 void bootstrap();

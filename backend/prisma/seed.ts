@@ -1,4 +1,6 @@
 import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // ===========================================
 // API-Based Database Seeding
@@ -6,7 +8,6 @@ import axios from 'axios';
 // This script creates test users via the actual API endpoints
 
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${process.env.PORT}/v1`;
-
 interface SeedUser {
   firstname: string;
   lastname: string;
