@@ -44,20 +44,39 @@ model User {
 }
 
 model Profile {
-  id                String    @id @default(uuid())
-  userId            String    @unique
-  displayName       String?
-  bio               String?
-  profilePictureUrl String?
-  chatLastReadAt    DateTime?
-  skills            String[]
-  experience        Int?
-  availability      Json?
-  portfolioLinks    String[]
-  companyName       String?
-  companyWebsite    String?
-  billingAddress    String?
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  displayName        String?
+  bio                String?
+  profilePictureUrl  String?
+  chatLastReadAt     DateTime?
+  skills             String[]
+  experience         Int?
+  availability       Json?
+  companyName        String?
+  companyWebsite     String?
+  adminPreferences   Json?
+  companyDescription String?
+  companySize        String?
+  contactEmail       String?
+  contactPerson      String?
+  contactPhone       String?
+  createdAt          DateTime  @default(now())
+  currency           String?   @default("USD")
+  education          Json?
+  hourlyRate         Float?
+  industry           String?
+  lastSystemAccess   DateTime?
+  location           Json?
+  permissions        String[]
+  projectPreferences Json?
+  socialLinks        Json?
+  systemRole         String?
+  updatedAt          DateTime
+  workPreferences    Json?
+  portfolioLinks     Json?
+  billingAddress     Json?
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuthProvider {
@@ -86,196 +105,4 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
-}
-
-model Session {
-  id                String   @id @default(uuid())
-  userId            String
-  sessionToken      String   @unique
-  expiresAt         DateTime
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  lastActivityAt    DateTime @default(now())
-  userAgent         String?
-  ipAddress         String?
-  deviceName        String?
-  rememberMe        Boolean  @default(false)
-  deviceFingerprint String?
-  isIncognito       Boolean  @default(false)
-  screenResolution  String?
-  timezone          String?
-  language          String?
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([sessionToken])
-  @@index([userId, isActive])
-  @@index([userId, deviceFingerprint])
-  @@index([expiresAt, isActive])
-}
-
-model AuditLog {
-  id               String             @id @default(uuid())
-  userId           String?
-  eventType        AuditEventType
-  eventCategory    AuditEventCategory
-  description      String
-  details          Json?
-  ipAddress        String?
-  userAgent        String?
-  sessionToken     String?
-  severity         AuditSeverity      @default(INFO)
-  source           String             @default("auth-system")
-  createdAt        DateTime           @default(now())
-  targetUserId     String?
-  targetResource   String?
-  targetResourceId String?
-  user             User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([eventType])
-  @@index([eventCategory])
-  @@index([severity])
-  @@index([createdAt])
-  @@index([source])
-}
-
-model SuspiciousActivity {
-  id                String                     @id @default(uuid())
-  userId            String?
-  activityType      SuspiciousActivityType
-  severity          SuspiciousActivitySeverity
-  description       String
-  details           Json?
-  ipAddress         String?
-  userAgent         String?
-  location          String?
-  deviceFingerprint String?
-  riskScore         Int                        @default(0)
-  confidence        Float                      @default(0.0)
-  status            SuspiciousActivityStatus   @default(DETECTED)
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  reviewNotes       String?
-  detectedAt        DateTime                   @default(now())
-  createdAt         DateTime                   @default(now())
-  relatedAuditLogs  String[]
-  user              User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([activityType])
-  @@index([severity])
-  @@index([status])
-  @@index([detectedAt])
-  @@index([riskScore])
-}
-
-model UserLoginPattern {
-  id                String   @id @default(uuid())
-  userId            String
-  ipAddress         String
-  userAgent         String
-  location          String?
-  deviceFingerprint String?
-  loginCount        Int      @default(1)
-  firstSeenAt       DateTime @default(now())
-  lastSeenAt        DateTime @default(now())
-  isSuspicious      Boolean  @default(false)
-  riskFactors       String[]
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, ipAddress, userAgent])
-  @@index([userId])
-  @@index([ipAddress])
-  @@index([isSuspicious])
-}
-
-enum UserRole {
-  CLIENT
-  DEVELOPER
-  ADMIN
-}
-
-enum SuspiciousActivityType {
-  UNUSUAL_LOGIN_TIME
-  UNUSUAL_LOCATION
-  UNUSUAL_DEVICE
-  RAPID_LOGIN_ATTEMPTS
-  CONCURRENT_LOGINS
-  PASSWORD_SPRAY_ATTACK
-  BRUTE_FORCE_ATTACK
-  ACCOUNT_TAKEOVER_ATTEMPT
-  SUSPICIOUS_ROLE_CHANGE
-  SESSION_HIJACKING_ATTEMPT
-  UNUSUAL_SESSION_ACTIVITY
-  MULTIPLE_FAILED_SESSIONS
-  RATE_LIMIT_VIOLATION
-  API_ABUSE
-  DATA_EXFILTRATION_ATTEMPT
-}
-
-enum SuspiciousActivitySeverity {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum SuspiciousActivityStatus {
-  DETECTED
-  INVESTIGATING
-  FALSE_POSITIVE
-  CONFIRMED_THREAT
-  RESOLVED
-}
-
-enum AuditEventType {
-  USER_LOGIN
-  USER_LOGOUT
-  LOGIN_FAILED
-  ACCOUNT_LOCKED
-  ACCOUNT_UNLOCKED
-  USER_REGISTERED
-  EMAIL_VERIFIED
-  EMAIL_VERIFICATION_SENT
-  PASSWORD_CHANGED
-  PASSWORD_RESET_REQUESTED
-  PASSWORD_RESET_COMPLETED
-  TWO_FACTOR_SETUP
-  TWO_FACTOR_ENABLED
-  TWO_FACTOR_DISABLED
-  TWO_FACTOR_VERIFICATION_FAILED
-  SESSION_CREATED
-  SESSION_TERMINATED
-  SESSION_EXPIRED
-  ALL_SESSIONS_TERMINATED
-  USER_ROLE_CHANGED
-  USER_DEACTIVATED
-  USER_ACTIVATED
-  USER_DELETED
-  PROFILE_UPDATED
-  PROFILE_VIEWED
-  SUSPICIOUS_ACTIVITY
-  RATE_LIMIT_EXCEEDED
-  UNAUTHORIZED_ACCESS
-  SYSTEM_ERROR
-  CONFIGURATION_CHANGED
-  MAINTENANCE_MODE
-}
-
-enum AuditEventCategory {
-  AUTHENTICATION
-  AUTHORIZATION
-  USER_MANAGEMENT
-  SECURITY
-  SYSTEM
-  PROFILE
-  SESSION
-}
-
-enum AuditSeverity {
-  DEBUG
-  INFO
-  WARNING
-  ERROR
-  CRITICAL
 }
