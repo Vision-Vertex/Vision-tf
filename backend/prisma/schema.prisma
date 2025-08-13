@@ -44,20 +44,39 @@ model User {
 }
 
 model Profile {
-  id                String    @id @default(uuid())
-  userId            String    @unique
-  displayName       String?
-  bio               String?
-  profilePictureUrl String?
-  chatLastReadAt    DateTime?
-  skills            String[]
-  experience        Int?
-  availability      Json?
-  portfolioLinks    Json?
-  companyName       String?
-  companyWebsite    String?
-  billingAddress    String?
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  displayName        String?
+  bio                String?
+  profilePictureUrl  String?
+  chatLastReadAt     DateTime?
+  skills             String[]
+  experience         Int?
+  availability       Json?
+  companyName        String?
+  companyWebsite     String?
+  adminPreferences   Json?
+  companyDescription String?
+  companySize        String?
+  contactEmail       String?
+  contactPerson      String?
+  contactPhone       String?
+  createdAt          DateTime  @default(now())
+  currency           String?   @default("USD")
+  education          Json?
+  hourlyRate         Float?
+  industry           String?
+  lastSystemAccess   DateTime?
+  location           Json?
+  permissions        String[]
+  projectPreferences Json?
+  socialLinks        Json?
+  systemRole         String?
+  updatedAt          DateTime
+  workPreferences    Json?
+  portfolioLinks     Json?
+  billingAddress     Json?
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuthProvider {
@@ -87,7 +106,6 @@ model RefreshToken {
 
   @@index([token])
 }
-
 model Session {
   id                String   @id @default(uuid())
   userId            String
@@ -102,9 +120,9 @@ model Session {
   rememberMe        Boolean  @default(false)
   deviceFingerprint String?
   isIncognito       Boolean  @default(false)
+  language          String?
   screenResolution  String?
   timezone          String?
-  language          String?
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sessionToken])
@@ -129,7 +147,7 @@ model AuditLog {
   targetUserId     String?
   targetResource   String?
   targetResourceId String?
-  user             User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user             User?              @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([eventType])
@@ -159,7 +177,7 @@ model SuspiciousActivity {
   detectedAt        DateTime                   @default(now())
   createdAt         DateTime                   @default(now())
   relatedAuditLogs  String[]
-  user              User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user              User?                      @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([activityType])
@@ -227,7 +245,6 @@ enum SuspiciousActivityStatus {
   CONFIRMED_THREAT
   RESOLVED
 }
-
 enum AuditEventType {
   USER_LOGIN
   USER_LOGOUT
