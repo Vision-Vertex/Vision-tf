@@ -26,28 +26,4 @@ export class LoginDto {
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Screen resolution for device fingerprinting',
-    example: '1920x1080',
-  })
-  @IsOptional()
-  @IsString()
-  screenResolution?: string;
-
-  @ApiPropertyOptional({
-    description: 'Timezone for device fingerprinting',
-    example: 'UTC',
-  })
-  @IsOptional()
-  @IsString()
-  timezone?: string;
-
-  @ApiPropertyOptional({
-    description: 'Language for device fingerprinting',
-    example: 'en-US',
-  })
-  @IsOptional()
-  @IsString()
-  language?: string;
 }
