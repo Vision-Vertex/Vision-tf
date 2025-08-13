@@ -77,8 +77,24 @@ export class AuthService {
       // Create profile with role-specific defaults
       const displayName = `${dto.firstname} ${dto.lastname}`.trim();
       
-      // Base profile data
-      const profileData: any = {
+      // Base profile data with proper typing
+      const profileData = {
+        userId: user.id,
+        displayName,
+        bio: null as string | null,
+        profilePictureUrl: null as string | null,
+        chatLastReadAt: null as Date | null,
+        skills: [] as string[],
+        experience: null as number | null,
+        availability: null as any,
+        portfolioLinks: [] as string[],
+        companyName: null as string | null,
+        companyWebsite: null as string | null,
+        billingAddress: null as string | null,
+      };
+
+      // Prepare profile data with role-specific defaults
+      const profileCreateData: any = {
         userId: user.id,
         displayName,
         bio: null,
@@ -86,29 +102,29 @@ export class AuthService {
         chatLastReadAt: null,
         skills: [],
         experience: null,
-        availability: null,
+        availability: undefined,
         portfolioLinks: [],
         companyName: null,
         companyWebsite: null,
         billingAddress: null,
       };
 
-      // Role-specific profile customization
+      // Apply role-specific customizations
       switch (user.role) {
         case 'CLIENT':
           // Keep default values for CLIENT
           break;
         case 'DEVELOPER':
-          profileData.experience = 0; // Default to 0 years
-          profileData.availability = { available: true, hours: '9-5' }; // Default availability
+          profileCreateData.experience = 0; // Default to 0 years
+          profileCreateData.availability = { available: true, hours: '9-5' }; // Default availability
           break;
         case 'ADMIN':
-          profileData.companyName = 'Vision-TF System'; // Default system name
+          profileCreateData.companyName = 'Vision-TF System'; // Default system name
           break;
       }
 
       const profile = await prisma.profile.create({
-        data: profileData,
+        data: profileCreateData,
       });
 
       return { user, profile };
