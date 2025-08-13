@@ -2,23 +2,43 @@
 
 import * as React from "react"
 import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
-function Label({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
-  return (
-    <LabelPrimitive.Root
-      data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className
-      )}
-      {...props}
-    />
-  )
-}
+const labelVariants = cva(
+  "text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+  {
+    variants: {
+      variant: {
+        default: "text-foreground",
+        muted: "text-muted-foreground",
+        required: "text-foreground after:content-['*'] after:ml-0.5 after:text-destructive",
+      },
+      size: {
+        default: "text-sm",
+        sm: "text-xs",
+        lg: "text-base",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
 
-export { Label }
+const Label = React.forwardRef<
+  React.ElementRef<typeof LabelPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> &
+    VariantProps<typeof labelVariants>
+>(({ className, variant, size, ...props }, ref) => (
+  <LabelPrimitive.Root
+    ref={ref}
+    className={cn(labelVariants({ variant, size }), className)}
+    {...props}
+  />
+))
+Label.displayName = LabelPrimitive.Root.displayName
+
+export { Label, labelVariants }

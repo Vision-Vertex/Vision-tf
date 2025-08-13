@@ -53,7 +53,7 @@ model Profile {
   skills            String[]
   experience        Int?
   availability      Json?
-  portfolioLinks    String[]
+  portfolioLinks    Json?
   companyName       String?
   companyWebsite    String?
   billingAddress    String?

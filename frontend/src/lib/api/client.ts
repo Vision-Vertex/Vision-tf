@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import { ApiResponse } from '@/types/api';
+import { getItem, setItem, removeItem } from '@/lib/utils/storage';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/v1';
+export const API_BASE_URL = process.env.API_BASE_URL;
 
 // Debug logging configuration
 const DEBUG_MODE = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true';
@@ -49,10 +49,44 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
+// Utility function to get tokens from Zustand store
+const getTokensFromStore = () => {
+  try {
+    // Get the persisted state from localStorage
+    const authStorage = getItem('auth-storage');
+    if (authStorage) {
+      return {
+        accessToken: authStorage.state?.accessToken || null,
+        refreshToken: authStorage.state?.refreshToken || null,
+      };
+    }
+    return { accessToken: null, refreshToken: null };
+  } catch (error) {
+    console.error('Error reading tokens from store:', error);
+    return { accessToken: null, refreshToken: null };
+  }
+};
+
+// Utility function to update tokens in store
+const updateTokensInStore = (accessToken: string, refreshToken?: string) => {
+  try {
+    const authStorage = getItem('auth-storage');
+    if (authStorage) {
+      authStorage.state.accessToken = accessToken;
+      if (refreshToken) {
+        authStorage.state.refreshToken = refreshToken;
+      }
+      setItem('auth-storage', authStorage);
+    }
+  } catch (error) {
+    console.error('Error updating tokens in store:', error);
+  }
+};
+
 // Token refresh function
 const refreshAccessToken = async (): Promise<string | null> => {
   try {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const { refreshToken } = getTokensFromStore();
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -76,10 +110,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
     if (response.data.success && response.data.data.accessToken) {
       const { accessToken, refreshToken: newRefreshToken } = response.data.data;
       
-      localStorage.setItem('accessToken', accessToken);
-      if (newRefreshToken) {
-        localStorage.setItem('refreshToken', newRefreshToken);
-      }
+      updateTokensInStore(accessToken, newRefreshToken);
       
       return accessToken;
     }
@@ -92,9 +123,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
     });
     
     // Clear tokens on refresh failure
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    removeItem('auth-storage');
     
     throw error;
   }
@@ -103,9 +132,9 @@ const refreshAccessToken = async (): Promise<string | null> => {
 // Setup request interceptor with logging
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const { accessToken } = getTokensFromStore();
+    if (accessToken && config.headers) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
     // Request logging
@@ -200,9 +229,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError, null);
         
         // Clear all tokens and redirect to login
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      removeItem('auth-storage');
       
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
@@ -258,20 +285,10 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Utility function to handle API responses 
-export function handleApiResponse<T>(response: AxiosResponse<ApiResponse<T>>): T {
-  if (!response.data.success) {
-    throw new Error(response.data.message || 'Request failed');
-  }
 
-  return response.data.data;
-}
 
-// Utility function to handle API errors
-export const handleApiError = (error: AxiosError): never => {
-  const errorMessage = (error.response?.data as any)?.message || error.message || 'An error occurred';
-  throw new Error(errorMessage);
-};
+// Re-export handleApiResponse from utils
+export { handleApiResponse } from '@/lib/utils/api';
 
 // Utility function to manually refresh token (for testing or manual use)
 export const manualTokenRefresh = async (): Promise<boolean> => {
@@ -285,9 +302,7 @@ export const manualTokenRefresh = async (): Promise<boolean> => {
 
 // Utility function to clear all tokens
 export const clearTokens = (): void => {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('user');
+  removeItem('auth-storage');
 };
 
 export default apiClient;

@@ -87,7 +87,7 @@ export class AuthService {
         skills: [],
         experience: null,
         availability: null,
-        portfolioLinks: [],
+        portfolioLinks: null,
         companyName: null,
         companyWebsite: null,
         billingAddress: null,

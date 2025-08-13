@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -11,9 +11,10 @@ import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
-    // Load environment variables
+    // Configuration module
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
     // Rate limiting configuration
     ThrottlerModule.forRoot([
