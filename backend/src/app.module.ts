@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { HealthModule } from './health/health.module';
+import { PortfolioService } from './profile/portfolio/portfolio.service';
+import { PortfolioController } from './profile/portfolio/portfolio.controller';
 
 @Module({
   imports: [
@@ -34,7 +36,7 @@ import { HealthModule } from './health/health.module';
     CommonModule,
     HealthModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, PortfolioController],
+  providers: [AppService, PortfolioService],
 })
 export class AppModule {}
