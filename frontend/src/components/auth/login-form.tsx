@@ -21,6 +21,7 @@ export default function LoginForm() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const handleInputChange = (field: keyof typeof formData, value: string | boolean) => {
+    console.log('Form input changed:', { field, value });
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -53,13 +54,12 @@ export default function LoginForm() {
       await handleLogin(formData.email, formData.password, formData.rememberMe);
       setSuccess('Login successful!');
       
-      // Redirect after successful login
-      setTimeout(() => {
-        window.location.href = '/dashboard';
-      }, 1000);
+      // Don't redirect here - let useAuth handle it
+      // The useAuth hook will call router.push('/') after successful login
       
     } catch (err: any) {
       console.error('Login error:', err);
+      // Don't set error here as it's already handled in useAuth hook
     }
   };
 

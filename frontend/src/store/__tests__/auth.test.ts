@@ -79,7 +79,7 @@ describe('Auth Store', () => {
       const sessionToken = 'mock-session-token';
 
       act(() => {
-        useAuthStore.getState().login(accessToken, refreshToken, sessionToken, mockUser);
+        useAuthStore.getState().login(accessToken, refreshToken, sessionToken, false, mockUser);
       });
 
       const state = useAuthStore.getState();
@@ -107,6 +107,46 @@ describe('Auth Store', () => {
       expect(state.sessionToken).toBe(sessionToken);
       expect(state.isAuthenticated).toBe(true);
       expect(state.user).toBe(null); // User should remain null if not provided
+      expect(state.error).toBe(null);
+    });
+
+    it('should handle login with remember me enabled', () => {
+      const accessToken = 'mock-access-token';
+      const refreshToken = 'mock-refresh-token';
+      const sessionToken = 'mock-session-token';
+      const rememberMe = true;
+
+      act(() => {
+        useAuthStore.getState().login(accessToken, refreshToken, sessionToken, rememberMe);
+      });
+
+      const state = useAuthStore.getState();
+
+      expect(state.accessToken).toBe(accessToken);
+      expect(state.refreshToken).toBe(refreshToken);
+      expect(state.sessionToken).toBe(sessionToken);
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.rememberMe).toBe(true);
+      expect(state.error).toBe(null);
+    });
+
+    it('should handle login with remember me disabled', () => {
+      const accessToken = 'mock-access-token';
+      const refreshToken = 'mock-refresh-token';
+      const sessionToken = 'mock-session-token';
+      const rememberMe = false;
+
+      act(() => {
+        useAuthStore.getState().login(accessToken, refreshToken, sessionToken, rememberMe);
+      });
+
+      const state = useAuthStore.getState();
+
+      expect(state.accessToken).toBe(accessToken);
+      expect(state.refreshToken).toBe(refreshToken);
+      expect(state.sessionToken).toBe(sessionToken);
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.rememberMe).toBe(false);
       expect(state.error).toBe(null);
     });
 
@@ -183,7 +223,7 @@ describe('Auth Store', () => {
       // First login to set some data
       const mockUser = createMockUser();
       act(() => {
-        useAuthStore.getState().login('token', 'refresh', 'session', mockUser);
+        useAuthStore.getState().login('token', 'refresh', 'session', false, mockUser);
         useAuthStore.getState().setUser(mockUser);
       });
 
@@ -246,7 +286,7 @@ describe('Auth Store', () => {
       
       // Set up complete state
       act(() => {
-        useAuthStore.getState().login('old-token', 'old-refresh', 'session', mockUser);
+        useAuthStore.getState().login('old-token', 'old-refresh', 'session', false, mockUser);
         useAuthStore.getState().setUser(mockUser);
         useAuthStore.getState().setLoading(true);
         useAuthStore.getState().setError('Some error');
@@ -464,7 +504,7 @@ describe('Auth Store', () => {
       const sessionToken = 'persistent-session';
 
       act(() => {
-        useAuthStore.getState().login(accessToken, refreshToken, sessionToken, mockUser);
+        useAuthStore.getState().login(accessToken, refreshToken, sessionToken, false, mockUser);
         useAuthStore.getState().setUser(mockUser);
       });
 
@@ -481,7 +521,7 @@ describe('Auth Store', () => {
       // Set up complete state
       const mockUser = createMockUser();
       act(() => {
-        useAuthStore.getState().login('token', 'refresh', 'session', mockUser);
+        useAuthStore.getState().login('token', 'refresh', 'session', false, mockUser);
         useAuthStore.getState().setUser(mockUser);
         useAuthStore.getState().setLoading(true);
         useAuthStore.getState().setError('Test error');

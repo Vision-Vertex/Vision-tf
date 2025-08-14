@@ -48,10 +48,17 @@ export const authApi = {
 
   // Login
   async login(data: LoginRequest): Promise<AuthResponse> {
-    try {
+    try { 
+      // Set login flag to prevent token refresh during login
+      (apiClient as any).setLoggingInFlag?.(true);
       const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/login', data);
+      
+      // Clear login flag after successful login
+      (apiClient as any).setLoggingInFlag?.(false);
       return handleApiResponse(response); // now returns just { accessToken, refreshToken, sessionToken }
     } catch (error) {
+      // Clear login flag on error
+      (apiClient as any).setLoggingInFlag?.(false);
       throw handleApiError(error as any);
     }
   },
