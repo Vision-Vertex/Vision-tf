@@ -10,6 +10,10 @@ import { CommonModule } from './common/common.module';
 import { HealthModule } from './health/health.module';
 import { PortfolioService } from './profile/portfolio/portfolio.service';
 import { PortfolioController } from './profile/portfolio/portfolio.controller';
+import { ProfileModule } from './profile/profile.module';
+import { SkillsProfileModule } from './profile/skills-profile/skills-profile.module';
+import { AvailabilityProfileModule } from './profile/availability-profile/availability-profile.module';
+import { AdminMgmtModule } from './profile/admin-mgmt/admin-mgmt.module';
 
 @Module({
   imports: [
@@ -35,6 +39,10 @@ import { PortfolioController } from './profile/portfolio/portfolio.controller';
     PrismaModule,
     CommonModule,
     HealthModule,
+    ProfileModule,
+    SkillsProfileModule,
+    AvailabilityProfileModule,
+    AdminMgmtModule
   ],
   controllers: [AppController, PortfolioController],
   providers: [AppService, PortfolioService],
