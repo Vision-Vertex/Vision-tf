@@ -15,6 +15,7 @@ export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   sessionToken?: string;
+  user?: UserProfile;
 }
 // API Types - Updated to match backend structure
 
@@ -26,6 +27,7 @@ export interface SignupRequest {
   username: string;
   email: string;
   password: string;
+  role?: 'CLIENT' | 'DEVELOPER' | 'ADMIN';
   preferredLanguage?: string;
   timezone?: string;
 }

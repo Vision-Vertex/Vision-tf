@@ -35,6 +35,7 @@ interface AuthActions {
   login: (accessToken: string, refreshToken: string, sessionToken: string, rememberMe?: boolean, user?: UserProfile) => void;
   signup: (user?: SignupUserData) => void;
   logout: () => void;
+  handleLogout: () => Promise<void>;
   refreshTokens: (accessToken: string, refreshToken: string) => void;
   clearError: () => void;
   setUser: (user: UserProfile) => void;
@@ -61,8 +62,9 @@ export const useAuthStore = create<AuthStore>()(
 
       // Actions
       login: (accessToken: string, refreshToken: string, sessionToken: string, rememberMe?: boolean, user?: UserProfile) => {
-        console.log('Login called with:', { accessToken: !!accessToken, refreshToken: !!refreshToken, rememberMe });
+        console.log('Login called with:', { accessToken: !!accessToken, refreshToken: !!refreshToken, rememberMe, user });
         set({
+          user: user || null,
           accessToken,
           refreshToken,
           sessionToken,
@@ -90,6 +92,26 @@ export const useAuthStore = create<AuthStore>()(
           error: null,
           rememberMe: false, // Reset rememberMe on logout
         });
+      },
+
+      handleLogout: async () => {
+        try {
+          // Import authApi here to avoid circular dependency
+          const { authApi } = await import('../lib/api/auth');
+          await authApi.logout();
+        } catch (error) {
+          console.error('Logout error:', error);
+        } finally {
+          set({
+            user: null,
+            accessToken: null,
+            refreshToken: null,
+            sessionToken: null,
+            isAuthenticated: false,
+            error: null,
+            rememberMe: false,
+          });
+        }
       },
 
       refreshTokens: (accessToken: string, refreshToken: string) => {
