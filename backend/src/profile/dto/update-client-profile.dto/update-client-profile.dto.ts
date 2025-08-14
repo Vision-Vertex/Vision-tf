@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsArray, ValidateNested, IsEmail, IsUrl } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-class LocationDto {
+export class LocationDto {
   @ApiPropertyOptional({ description: 'Country', example: 'USA' })
   @IsString()
   @IsOptional()
@@ -24,7 +24,7 @@ class LocationDto {
   timezone?: string;
 }
 
-class BillingAddressDto {
+export class BillingAddressDto {
   @ApiPropertyOptional({ description: 'Street', example: '123 Main St' })
   @IsString()
   @IsOptional()
@@ -51,7 +51,7 @@ class BillingAddressDto {
   postalCode?: string;
 }
 
-class CustomLinkDto {
+export class CustomLinkDto {
   @ApiPropertyOptional({ description: 'Label', example: 'Facebook' })
   @IsString()
   label: string;
@@ -66,7 +66,7 @@ class CustomLinkDto {
   description?: string | null;
 }
 
-class SocialLinksDto {
+export class SocialLinksDto {
   @ApiPropertyOptional({ description: 'LinkedIn URL', example: 'https://linkedin.com/company' })
   @IsString()
   @IsOptional()
@@ -90,7 +90,7 @@ class SocialLinksDto {
   customLinks?: CustomLinkDto[];
 }
 
-class ProjectPreferencesDto {
+export class ProjectPreferencesDto {
   @ApiPropertyOptional({ description: 'Typical project budget', example: '1k-5k' })
   @IsString()
   @IsOptional()
@@ -124,7 +124,7 @@ export class UpdateClientProfileDto {
   companyName?: string;
 
   @ApiPropertyOptional({ description: 'Company website URL', example: 'https://techco.com' })
-  @IsString()
+  @IsUrl()
   @IsOptional()
   companyWebsite?: string;
 
@@ -149,7 +149,7 @@ export class UpdateClientProfileDto {
   contactPerson?: string;
 
   @ApiPropertyOptional({ description: 'Contact email', example: 'contact@techco.com' })
-  @IsString()
+  @IsEmail()
   @IsOptional()
   contactEmail?: string;
 

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsObject, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsObject, ValidateNested, IsNotEmpty } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -203,6 +203,26 @@ export class UpdateDeveloperProfileDto {
   education?: EducationDto;
 
   @ApiPropertyOptional({ type: WorkPreferencesDto, description: 'Work preferences' })
+  @ValidateNested()
+  @Type(() => WorkPreferencesDto)
+  @IsOptional()
+  workPreferences?: WorkPreferencesDto;
+}
+export class AddSkillDto {
+  @ApiPropertyOptional({ description: 'Single skill to add', example: 'TypeScript' })
+  @IsString()
+  @IsNotEmpty()
+  skill: string;
+
+}
+export class AvailabilityResponseDto {
+  @ApiPropertyOptional({ description: 'Availability settings' })
+  @ValidateNested()
+  @Type(() => AvailabilityDto)
+  @IsOptional()
+  availability?: AvailabilityDto;
+
+  @ApiPropertyOptional({ description: 'Work preferences' })
   @ValidateNested()
   @Type(() => WorkPreferencesDto)
   @IsOptional()
