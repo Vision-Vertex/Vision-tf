@@ -2,7 +2,7 @@ import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsObject, ValidateN
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-class AvailabilityDto {
+export class AvailabilityDto {
   @ApiPropertyOptional({ description: 'Currently available for work', example: true })
   @IsBoolean()
   @IsOptional()
@@ -34,7 +34,7 @@ class AvailabilityDto {
   preferredProjectTypes?: string[];
 }
 
-class PortfolioLinkDto {
+export class PortfolioLinkDto {
   @ApiPropertyOptional({ description: 'Label for custom link', example: 'Instagram' })
   @IsString()
   label: string;
@@ -49,7 +49,7 @@ class PortfolioLinkDto {
   description?: string | null;
 }
 
-class PortfolioLinksDto {
+export class PortfolioLinksDto {
   @ApiPropertyOptional({ description: 'GitHub profile URL', example: 'https://github.com/user' })
   @IsString()
   @IsOptional()
@@ -78,7 +78,7 @@ class PortfolioLinksDto {
   customLinks?: PortfolioLinkDto[];
 }
 
-class CertificationDto {
+export class CertificationDto {
   @ApiPropertyOptional({ description: 'Certification name', example: 'AWS Certified Solutions Architect' })
   @IsString()
   name: string;
@@ -102,7 +102,7 @@ class CertificationDto {
   credentialId?: string | null;
 }
 
-class EducationDto {
+export class EducationDto {
   @ApiPropertyOptional({ description: 'Degree', example: "Bachelor's in Computer Science" })
   @IsString()
   @IsOptional()
@@ -126,7 +126,7 @@ class EducationDto {
   certifications?: CertificationDto[];
 }
 
-class WorkPreferencesDto {
+export class WorkPreferencesDto {
   @ApiPropertyOptional({ description: 'Willing to work remotely', example: true })
   @IsBoolean()
   @IsOptional()

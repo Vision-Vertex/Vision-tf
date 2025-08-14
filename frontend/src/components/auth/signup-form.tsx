@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { authApi } from '@/lib/api/auth';
 import { SignupRequest } from '@/types/api';
@@ -16,6 +17,7 @@ export default function SignupForm() {
     username: '',
     email: '',
     password: '',
+    role: 'CLIENT',
     preferredLanguage: 'en',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
   });
@@ -24,7 +26,7 @@ export default function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleInputChange = (field: keyof SignupRequest, value: string) => {
+  const handleInputChange = (field: keyof SignupRequest, value: string | 'CLIENT' | 'DEVELOPER') => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -86,6 +88,7 @@ export default function SignupForm() {
         username: '',
         email: '',
         password: '',
+        role: 'CLIENT',
         preferredLanguage: 'en',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
@@ -163,6 +166,23 @@ export default function SignupForm() {
                 disabled={isLoading}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <Select
+              value={formData.role}
+              onValueChange={(value: 'CLIENT' | 'DEVELOPER') => handleInputChange('role', value)}
+              disabled={isLoading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select your role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CLIENT">Client</SelectItem>
+                <SelectItem value="DEVELOPER">Developer</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

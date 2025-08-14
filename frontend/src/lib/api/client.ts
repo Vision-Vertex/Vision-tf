@@ -296,10 +296,24 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // Handle other errors
+    // Handle session-related errors
     const errorMessage = (error.response?.data as any)?.message || error.message || 'An error occurred';
-    console.error(errorMessage);
     
+    if (errorMessage.includes('Session not found') || errorMessage.includes('already terminated')) {
+      console.error('Session expired or terminated. Redirecting to login...');
+      
+      // Clear all tokens and redirect to login
+      const { logout } = useAuthStore.getState();
+      logout();
+      
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      
+      return Promise.reject(new Error('Session expired. Please login again.'));
+    }
+    
+    console.error(errorMessage);
     return Promise.reject(error);
   }
 );

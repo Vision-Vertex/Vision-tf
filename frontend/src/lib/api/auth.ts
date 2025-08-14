@@ -55,7 +55,7 @@ export const authApi = {
       
       // Clear login flag after successful login
       (apiClient as any).setLoggingInFlag?.(false);
-      return handleApiResponse(response); // now returns just { accessToken, refreshToken, sessionToken }
+      return handleApiResponse(response); // returns { accessToken, refreshToken, sessionToken, user }
     } catch (error) {
       // Clear login flag on error
       (apiClient as any).setLoggingInFlag?.(false);
