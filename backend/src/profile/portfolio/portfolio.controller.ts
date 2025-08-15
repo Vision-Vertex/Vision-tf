@@ -14,7 +14,7 @@ import { PortfolioService } from './portfolio.service';
 import { PortfolioLinkDto, PortfolioLinksDto } from '../dto/update-developer-profile.dto/update-developer-profile.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
-@ApiTags('Portfolio')
+@ApiTags('User Management')
 @ApiBearerAuth()
 @Controller('profile/portfolio')
 export class PortfolioController {
