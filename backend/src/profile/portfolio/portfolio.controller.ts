@@ -13,15 +13,21 @@ import {
 import { PortfolioService } from './portfolio.service';
 import { PortfolioLinkDto, PortfolioLinksDto } from '../dto/update-developer-profile.dto/update-developer-profile.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuardWithRoles } from '../../auth/guards/auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { UserRole } from '.prisma/client/wasm';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 
 @ApiTags('User Management')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 @Controller('profile/portfolio')
 export class PortfolioController {
   constructor(private readonly portfolioService: PortfolioService) {}
 
   
   @Get()
+ @UseGuards(AuthGuardWithRoles)
+  @Roles(UserRole.DEVELOPER)
   @ApiOperation({ summary: 'Get portfolio links' })
   @ApiResponse({ status: 200, type: PortfolioLinksDto })
   async getPortfolioLinks(@Query('userId') userId: string): Promise<PortfolioLinksDto> {
@@ -30,6 +36,8 @@ export class PortfolioController {
 
   
   @Post('custom')
+  @UseGuards(AuthGuardWithRoles)
+  @Roles(UserRole.DEVELOPER)
   @ApiOperation({ summary: 'Add custom link' })
   @ApiResponse({ status: 201, type: PortfolioLinksDto })
   async addCustomLink(
@@ -41,6 +49,8 @@ export class PortfolioController {
 
 
   @Patch('custom/:label')
+  @UseGuards(AuthGuardWithRoles)
+  @Roles(UserRole.DEVELOPER)
   @ApiOperation({ summary: 'Update custom link' })
   @ApiResponse({ status: 200, type: PortfolioLinksDto })
   async updateCustomLink(
@@ -54,6 +64,8 @@ export class PortfolioController {
   
   
   @Delete('custom/:label')
+  @UseGuards(AuthGuardWithRoles)
+  @Roles(UserRole.DEVELOPER)
   @ApiOperation({ summary: 'Remove custom link' })
   @ApiResponse({ status: 200, type: PortfolioLinksDto })
   async removeCustomLink(
