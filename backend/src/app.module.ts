@@ -8,12 +8,12 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { HealthModule } from './health/health.module';
-import { PortfolioService } from './profile/portfolio/portfolio.service';
-import { PortfolioController } from './profile/portfolio/portfolio.controller';
 import { ProfileModule } from './profile/profile.module';
 import { SkillsProfileModule } from './profile/skills-profile/skills-profile.module';
 import { AvailabilityProfileModule } from './profile/availability-profile/availability-profile.module';
 import { AdminMgmtModule } from './profile/admin-mgmt/admin-mgmt.module';
+import { ClientModule } from './profile/client/client.module';
+import { PortfolioModule } from './profile/portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -42,9 +42,11 @@ import { AdminMgmtModule } from './profile/admin-mgmt/admin-mgmt.module';
     ProfileModule,
     SkillsProfileModule,
     AvailabilityProfileModule,
-    AdminMgmtModule
+    AdminMgmtModule,
+    ClientModule,
+    PortfolioModule
   ],
-  controllers: [AppController, PortfolioController],
-  providers: [AppService, PortfolioService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
