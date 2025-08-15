@@ -17,13 +17,13 @@ import { Profile, UserRole } from '@prisma/client';
 import { SocialLinksDto } from '../dto/update-client-profile.dto/update-client-profile.dto';
 
 @ApiTags('User Management')
-@ApiBearerAuth() // Indicates that JWT Bearer token is required
+@ApiBearerAuth(AuthGuardWithRoles) // Indicates that JWT Bearer token is required
 @Controller('profile')
 export class ClientController {
   constructor(private readonly clientService: ClientService) {}
 
   @Patch('company')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards('JWT-auth')
   @Roles(UserRole.CLIENT)
   @ApiOperation({ summary: 'Update client company information' })
   @ApiResponse({ status: 200, description: 'Company info successfully updated', type: CompanyInfoDto })
@@ -34,7 +34,7 @@ export class ClientController {
   }
 
   @Patch('billing')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards('JWT-auth')
   @Roles(UserRole.CLIENT)
   @ApiOperation({ summary: 'Update client billing address' })
   @ApiResponse({ status: 200, description: 'Billing address successfully updated', type: BillingAddressDto })
@@ -45,7 +45,7 @@ export class ClientController {
   }
 
   @Patch('project-preferences')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards('JWT-auth')
   @Roles(UserRole.CLIENT)
   @ApiOperation({ summary: 'Update client project preferences' })
   @ApiResponse({ status: 200, description: 'Project preferences successfully updated', type: ProjectPreferencesDto })
@@ -57,7 +57,7 @@ export class ClientController {
   }
 
   @Patch('client-social')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards('JWT-auth')
   @Roles(UserRole.CLIENT)
   @ApiOperation({ summary: 'Update client social links' })
   @ApiResponse({ status: 200, description: 'Social links successfully updated', type: SocialLinksDto })
