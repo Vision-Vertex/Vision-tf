@@ -1,6 +1,9 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { DeviceFingerprintService, DeviceFingerprintData } from './device-fingerprint.service';
+import {
+  DeviceFingerprintService,
+  DeviceFingerprintData,
+} from './device-fingerprint.service';
 import { SessionConfigService } from './session-config.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
@@ -22,7 +25,24 @@ export class SessionService {
       timezone?: string;
       language?: string;
     },
-  ): Promise<{ id: string; sessionToken: string; userId: string; expiresAt: Date; isActive: boolean; createdAt: Date; lastActivityAt: Date; userAgent: string | null; ipAddress: string | null; deviceName: string | null; rememberMe: boolean; deviceFingerprint: string | null; isIncognito: boolean; screenResolution: string | null; timezone: string | null; language: string | null }> {
+  ): Promise<{
+    id: string;
+    sessionToken: string;
+    userId: string;
+    expiresAt: Date;
+    isActive: boolean;
+    createdAt: Date;
+    lastActivityAt: Date;
+    userAgent: string | null;
+    ipAddress: string | null;
+    deviceName: string | null;
+    rememberMe: boolean;
+    deviceFingerprint: string | null;
+    isIncognito: boolean;
+    screenResolution: string | null;
+    timezone: string | null;
+    language: string | null;
+  }> {
     // Create device fingerprint
     const fingerprintData: DeviceFingerprintData = {
       userAgent,
@@ -31,10 +51,12 @@ export class SessionService {
       timezone: additionalData?.timezone,
       language: additionalData?.language,
     };
-    
-    const deviceFingerprint = this.deviceFingerprintService.createFingerprint(fingerprintData);
+
+    const deviceFingerprint =
+      this.deviceFingerprintService.createFingerprint(fingerprintData);
     const deviceInfo = this.deviceFingerprintService.parseDeviceInfo(userAgent);
-    const deviceName = this.deviceFingerprintService.createDeviceName(deviceInfo);
+    const deviceName =
+      this.deviceFingerprintService.createDeviceName(deviceInfo);
 
     // Check for existing session with same device fingerprint
     const existingSession = await this.prisma.session.findFirst({
@@ -77,7 +99,27 @@ export class SessionService {
     return session;
   }
 
-  async extendSession(sessionId: string, rememberMe: boolean = false): Promise<{ id: string; sessionToken: string; userId: string; expiresAt: Date; isActive: boolean; createdAt: Date; lastActivityAt: Date; userAgent: string | null; ipAddress: string | null; deviceName: string | null; rememberMe: boolean; deviceFingerprint: string | null; isIncognito: boolean; screenResolution: string | null; timezone: string | null; language: string | null }> {
+  async extendSession(
+    sessionId: string,
+    rememberMe: boolean = false,
+  ): Promise<{
+    id: string;
+    sessionToken: string;
+    userId: string;
+    expiresAt: Date;
+    isActive: boolean;
+    createdAt: Date;
+    lastActivityAt: Date;
+    userAgent: string | null;
+    ipAddress: string | null;
+    deviceName: string | null;
+    rememberMe: boolean;
+    deviceFingerprint: string | null;
+    isIncognito: boolean;
+    screenResolution: string | null;
+    timezone: string | null;
+    language: string | null;
+  }> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
@@ -92,10 +134,10 @@ export class SessionService {
 
     if (timeUntilExpiry < threshold) {
       const newExpiresAt = this.calculateExpiration(rememberMe);
-      
+
       await this.prisma.session.update({
         where: { id: sessionId },
-        data: { 
+        data: {
           expiresAt: newExpiresAt,
           lastActivityAt: new Date(),
         },
@@ -105,11 +147,11 @@ export class SessionService {
       const updatedSession = await this.prisma.session.findUnique({
         where: { id: sessionId },
       });
-      
+
       if (!updatedSession) {
         throw new BadRequestException('Failed to update session');
       }
-      
+
       return updatedSession;
     }
 
@@ -197,10 +239,10 @@ export class SessionService {
   }
 
   private calculateExpiration(rememberMe: boolean): Date {
-    const duration = rememberMe 
-      ? this.sessionConfig.rememberMeExpires 
+    const duration = rememberMe
+      ? this.sessionConfig.rememberMeExpires
       : this.sessionConfig.sessionExpires;
-    
+
     return new Date(Date.now() + duration);
   }
 }

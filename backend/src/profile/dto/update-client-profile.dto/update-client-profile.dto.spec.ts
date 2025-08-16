@@ -1,12 +1,12 @@
 import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
-import { 
+import {
   LocationDto,
   BillingAddressDto,
   CustomLinkDto,
   SocialLinksDto,
   ProjectPreferencesDto,
-  UpdateClientProfileDto 
+  UpdateClientProfileDto,
 } from './update-client-profile.dto';
 
 describe('LocationDto', () => {
@@ -15,7 +15,7 @@ describe('LocationDto', () => {
       country: 'USA',
       city: 'New York',
       state: 'NY',
-      timezone: 'UTC-5'
+      timezone: 'UTC-5',
     });
 
     const errors = await validate(dto);
@@ -25,7 +25,7 @@ describe('LocationDto', () => {
   it('should validate with partial data', async () => {
     const dto = plainToClass(LocationDto, {
       country: 'USA',
-      city: 'New York'
+      city: 'New York',
     });
 
     const errors = await validate(dto);
@@ -34,7 +34,7 @@ describe('LocationDto', () => {
 
   it('should validate with minimal data', async () => {
     const dto = plainToClass(LocationDto, {
-      country: 'USA'
+      country: 'USA',
     });
 
     const errors = await validate(dto);
@@ -43,11 +43,50 @@ describe('LocationDto', () => {
 
   it('should fail with invalid data types', async () => {
     const dto = plainToClass(LocationDto, {
-      country: 123 // Should be string
+      country: 123, // Should be string
     });
 
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should fail with invalid timezone format', async () => {
+    const dto = plainToClass(LocationDto, {
+      timezone: 'invalid-timezone',
+    });
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].constraints?.matches).toBeDefined();
+  });
+
+  it('should validate correct timezone format', async () => {
+    const dto = plainToClass(LocationDto, {
+      timezone: 'UTC+5',
+    });
+
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('should fail with too short country', async () => {
+    const dto = plainToClass(LocationDto, {
+      country: 'A',
+    });
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].constraints?.minLength).toBeDefined();
+  });
+
+  it('should fail with too long country', async () => {
+    const dto = plainToClass(LocationDto, {
+      country: 'A'.repeat(51),
+    });
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].constraints?.maxLength).toBeDefined();
   });
 });
 
@@ -58,7 +97,7 @@ describe('BillingAddressDto', () => {
       city: 'New York',
       state: 'NY',
       country: 'USA',
-      postalCode: '10001'
+      postalCode: '10001',
     });
 
     const errors = await validate(dto);
@@ -68,7 +107,7 @@ describe('BillingAddressDto', () => {
   it('should validate with partial data', async () => {
     const dto = plainToClass(BillingAddressDto, {
       street: '123 Main St',
-      city: 'New York'
+      city: 'New York',
     });
 
     const errors = await validate(dto);
@@ -77,7 +116,7 @@ describe('BillingAddressDto', () => {
 
   it('should validate with minimal data', async () => {
     const dto = plainToClass(BillingAddressDto, {
-      street: '123 Main St'
+      street: '123 Main St',
     });
 
     const errors = await validate(dto);
@@ -86,11 +125,40 @@ describe('BillingAddressDto', () => {
 
   it('should fail with invalid data types', async () => {
     const dto = plainToClass(BillingAddressDto, {
-      street: 123 // Should be string
+      street: 123, // Should be string
     });
 
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('should fail with invalid postal code format', async () => {
+    const dto = plainToClass(BillingAddressDto, {
+      postalCode: 'A', // Too short
+    });
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].constraints?.matches).toBeDefined();
+  });
+
+  it('should validate correct postal code format', async () => {
+    const dto = plainToClass(BillingAddressDto, {
+      postalCode: '12345-6789',
+    });
+
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('should fail with too short street', async () => {
+    const dto = plainToClass(BillingAddressDto, {
+      street: '123',
+    });
+
+    const errors = await validate(dto);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0].constraints?.minLength).toBeDefined();
   });
 });
 
@@ -99,7 +167,7 @@ describe('CustomLinkDto', () => {
     const dto = plainToClass(CustomLinkDto, {
       label: 'Facebook',
       url: 'https://facebook.com/company',
-      description: 'Company Facebook page'
+      description: 'Company Facebook page',
     });
 
     const errors = await validate(dto);
@@ -109,7 +177,7 @@ describe('CustomLinkDto', () => {
   it('should validate with minimal required data', async () => {
     const dto = plainToClass(CustomLinkDto, {
       label: 'Facebook',
-      url: 'https://facebook.com/company'
+      url: 'https://facebook.com/company',
     });
 
     const errors = await validate(dto);
@@ -118,7 +186,7 @@ describe('CustomLinkDto', () => {
 
   it('should fail without required label', async () => {
     const dto = plainToClass(CustomLinkDto, {
-      url: 'https://facebook.com/company'
+      url: 'https://facebook.com/company',
     });
 
     const errors = await validate(dto);
@@ -127,7 +195,7 @@ describe('CustomLinkDto', () => {
 
   it('should fail without required url', async () => {
     const dto = plainToClass(CustomLinkDto, {
-      label: 'Facebook'
+      label: 'Facebook',
     });
 
     const errors = await validate(dto);
@@ -137,7 +205,7 @@ describe('CustomLinkDto', () => {
   it('should fail with invalid data types', async () => {
     const dto = plainToClass(CustomLinkDto, {
       label: 123, // Should be string
-      url: 'https://facebook.com/company'
+      url: 'https://facebook.com/company',
     });
 
     const errors = await validate(dto);
@@ -155,9 +223,9 @@ describe('SocialLinksDto', () => {
         {
           label: 'Facebook',
           url: 'https://facebook.com/company',
-          description: 'Company Facebook page'
-        }
-      ]
+          description: 'Company Facebook page',
+        },
+      ],
     });
 
     const errors = await validate(dto);
@@ -166,7 +234,7 @@ describe('SocialLinksDto', () => {
 
   it('should validate with partial data', async () => {
     const dto = plainToClass(SocialLinksDto, {
-      linkedin: 'https://linkedin.com/company'
+      linkedin: 'https://linkedin.com/company',
     });
 
     const errors = await validate(dto);
@@ -178,9 +246,9 @@ describe('SocialLinksDto', () => {
       customLinks: [
         {
           label: 'Facebook',
-          url: 'https://facebook.com/company'
-        }
-      ]
+          url: 'https://facebook.com/company',
+        },
+      ],
     });
 
     const errors = await validate(dto);
@@ -191,10 +259,10 @@ describe('SocialLinksDto', () => {
     const dto = plainToClass(SocialLinksDto, {
       customLinks: [
         {
-          label: 'Facebook'
+          label: 'Facebook',
           // Missing required url
-        }
-      ]
+        },
+      ],
     });
 
     const errors = await validate(dto);
@@ -209,7 +277,7 @@ describe('ProjectPreferencesDto', () => {
       typicalProjectDuration: '1-3 months',
       preferredCommunication: ['email', 'chat'],
       timezonePreference: 'UTC+3',
-      projectTypes: ['web', 'mobile']
+      projectTypes: ['web', 'mobile'],
     });
 
     const errors = await validate(dto);
@@ -218,7 +286,7 @@ describe('ProjectPreferencesDto', () => {
 
   it('should validate with partial data', async () => {
     const dto = plainToClass(ProjectPreferencesDto, {
-      typicalProjectBudget: '1k-5k'
+      typicalProjectBudget: '1k-5k',
     });
 
     const errors = await validate(dto);
@@ -227,7 +295,7 @@ describe('ProjectPreferencesDto', () => {
 
   it('should validate with minimal data', async () => {
     const dto = plainToClass(ProjectPreferencesDto, {
-      typicalProjectBudget: '1k-5k'
+      typicalProjectBudget: '1k-5k',
     });
 
     const errors = await validate(dto);
@@ -236,7 +304,7 @@ describe('ProjectPreferencesDto', () => {
 
   it('should fail with invalid array values', async () => {
     const dto = plainToClass(ProjectPreferencesDto, {
-      preferredCommunication: 'not-an-array'
+      preferredCommunication: 'not-an-array',
     });
 
     const errors = await validate(dto);
@@ -245,7 +313,7 @@ describe('ProjectPreferencesDto', () => {
 
   it('should fail with invalid data types', async () => {
     const dto = plainToClass(ProjectPreferencesDto, {
-      typicalProjectBudget: 123 // Should be string
+      typicalProjectBudget: 123, // Should be string
     });
 
     const errors = await validate(dto);
@@ -268,21 +336,21 @@ describe('UpdateClientProfileDto', () => {
         country: 'USA',
         city: 'New York',
         state: 'NY',
-        timezone: 'UTC-5'
+        timezone: 'UTC-5',
       },
       billingAddress: {
         street: '123 Main St',
         city: 'New York',
         state: 'NY',
         country: 'USA',
-        postalCode: '10001'
+        postalCode: '10001',
       },
       projectPreferences: {
         typicalProjectBudget: '1k-5k',
         typicalProjectDuration: '1-3 months',
         preferredCommunication: ['email', 'chat'],
         timezonePreference: 'UTC+3',
-        projectTypes: ['web', 'mobile']
+        projectTypes: ['web', 'mobile'],
       },
       socialLinks: {
         linkedin: 'https://linkedin.com/company',
@@ -292,10 +360,10 @@ describe('UpdateClientProfileDto', () => {
           {
             label: 'Facebook',
             url: 'https://facebook.com/company',
-            description: 'Company Facebook page'
-          }
-        ]
-      }
+            description: 'Company Facebook page',
+          },
+        ],
+      },
     });
 
     const errors = await validate(dto);
@@ -305,7 +373,7 @@ describe('UpdateClientProfileDto', () => {
   it('should validate with partial data', async () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       companyName: 'Tech Co.',
-      contactEmail: 'contact@techco.com'
+      contactEmail: 'contact@techco.com',
     });
 
     const errors = await validate(dto);
@@ -317,7 +385,7 @@ describe('UpdateClientProfileDto', () => {
       companyName: 'Tech Co.',
       companyWebsite: 'https://techco.com',
       companySize: '51-200',
-      industry: 'Technology'
+      industry: 'Technology',
     });
 
     const errors = await validate(dto);
@@ -328,7 +396,7 @@ describe('UpdateClientProfileDto', () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       contactPerson: 'Jane Doe',
       contactEmail: 'contact@techco.com',
-      contactPhone: '+1234567890'
+      contactPhone: '+1234567890',
     });
 
     const errors = await validate(dto);
@@ -341,8 +409,8 @@ describe('UpdateClientProfileDto', () => {
         country: 'USA',
         city: 'New York',
         state: 'NY',
-        timezone: 'UTC-5'
-      }
+        timezone: 'UTC-5',
+      },
     });
 
     const errors = await validate(dto);
@@ -356,8 +424,8 @@ describe('UpdateClientProfileDto', () => {
         city: 'New York',
         state: 'NY',
         country: 'USA',
-        postalCode: '10001'
-      }
+        postalCode: '10001',
+      },
     });
 
     const errors = await validate(dto);
@@ -371,8 +439,8 @@ describe('UpdateClientProfileDto', () => {
         typicalProjectDuration: '1-3 months',
         preferredCommunication: ['email', 'chat'],
         timezonePreference: 'UTC+3',
-        projectTypes: ['web', 'mobile']
-      }
+        projectTypes: ['web', 'mobile'],
+      },
     });
 
     const errors = await validate(dto);
@@ -384,8 +452,8 @@ describe('UpdateClientProfileDto', () => {
       socialLinks: {
         linkedin: 'https://linkedin.com/company',
         website: 'https://company.com',
-        x: 'https://twitter.com/company'
-      }
+        x: 'https://twitter.com/company',
+      },
     });
 
     const errors = await validate(dto);
@@ -399,14 +467,14 @@ describe('UpdateClientProfileDto', () => {
           {
             label: 'Facebook',
             url: 'https://facebook.com/company',
-            description: 'Company Facebook page'
+            description: 'Company Facebook page',
           },
           {
             label: 'Instagram',
-            url: 'https://instagram.com/company'
-          }
-        ]
-      }
+            url: 'https://instagram.com/company',
+          },
+        ],
+      },
     });
 
     const errors = await validate(dto);
@@ -416,8 +484,8 @@ describe('UpdateClientProfileDto', () => {
   it('should validate with minimal project preferences', async () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       projectPreferences: {
-        typicalProjectBudget: '1k-5k'
-      }
+        typicalProjectBudget: '1k-5k',
+      },
     });
 
     const errors = await validate(dto);
@@ -427,8 +495,8 @@ describe('UpdateClientProfileDto', () => {
   it('should validate with minimal location', async () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       location: {
-        country: 'USA'
-      }
+        country: 'USA',
+      },
     });
 
     const errors = await validate(dto);
@@ -439,8 +507,8 @@ describe('UpdateClientProfileDto', () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       billingAddress: {
         street: '123 Main St',
-        city: 'New York'
-      }
+        city: 'New York',
+      },
     });
 
     const errors = await validate(dto);
@@ -449,7 +517,7 @@ describe('UpdateClientProfileDto', () => {
 
   it('should fail with invalid email format', async () => {
     const dto = plainToClass(UpdateClientProfileDto, {
-      contactEmail: 'invalid-email'
+      contactEmail: 'invalid-email',
     });
 
     const errors = await validate(dto);
@@ -458,7 +526,7 @@ describe('UpdateClientProfileDto', () => {
 
   it('should fail with invalid URL format', async () => {
     const dto = plainToClass(UpdateClientProfileDto, {
-      companyWebsite: 'not-a-url'
+      companyWebsite: 'not-a-url',
     });
 
     const errors = await validate(dto);
@@ -468,8 +536,8 @@ describe('UpdateClientProfileDto', () => {
   it('should fail with invalid nested object structure', async () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       location: {
-        country: 123 // Should be string
-      }
+        country: 123, // Should be string
+      },
     });
 
     const errors = await validate(dto);
@@ -479,8 +547,8 @@ describe('UpdateClientProfileDto', () => {
   it('should fail with invalid array in nested object', async () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       projectPreferences: {
-        preferredCommunication: 'not-an-array'
-      }
+        preferredCommunication: 'not-an-array',
+      },
     });
 
     const errors = await validate(dto);
@@ -492,11 +560,11 @@ describe('UpdateClientProfileDto', () => {
       socialLinks: {
         customLinks: [
           {
-            label: 'Facebook'
+            label: 'Facebook',
             // Missing required url
-          }
-        ]
-      }
+          },
+        ],
+      },
     });
 
     const errors = await validate(dto);
@@ -514,7 +582,7 @@ describe('UpdateClientProfileDto', () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       companyName: 'Tech Co.',
       companyDescription: null,
-      contactPhone: null
+      contactPhone: null,
     });
 
     const errors = await validate(dto);
@@ -525,7 +593,7 @@ describe('UpdateClientProfileDto', () => {
     const dto = plainToClass(UpdateClientProfileDto, {
       companyName: 'Tech Co.',
       companyDescription: undefined,
-      contactPhone: undefined
+      contactPhone: undefined,
     });
 
     const errors = await validate(dto);
@@ -546,21 +614,21 @@ describe('UpdateClientProfileDto', () => {
         country: 'USA',
         city: 'New York',
         state: 'NY',
-        timezone: 'UTC-5'
+        timezone: 'UTC-5',
       },
       billingAddress: {
         street: '123 Main St',
         city: 'New York',
         state: 'NY',
         country: 'USA',
-        postalCode: '10001'
+        postalCode: '10001',
       },
       projectPreferences: {
         typicalProjectBudget: '1k-5k',
         typicalProjectDuration: '1-3 months',
         preferredCommunication: ['email', 'chat', 'phone'],
         timezonePreference: 'UTC+3',
-        projectTypes: ['web', 'mobile', 'desktop']
+        projectTypes: ['web', 'mobile', 'desktop'],
       },
       socialLinks: {
         linkedin: 'https://linkedin.com/company',
@@ -570,19 +638,19 @@ describe('UpdateClientProfileDto', () => {
           {
             label: 'Facebook',
             url: 'https://facebook.com/company',
-            description: 'Company Facebook page'
+            description: 'Company Facebook page',
           },
           {
             label: 'Instagram',
             url: 'https://instagram.com/company',
-            description: 'Company Instagram page'
+            description: 'Company Instagram page',
           },
           {
             label: 'YouTube',
-            url: 'https://youtube.com/company'
-          }
-        ]
-      }
+            url: 'https://youtube.com/company',
+          },
+        ],
+      },
     });
 
     const errors = await validate(dto);

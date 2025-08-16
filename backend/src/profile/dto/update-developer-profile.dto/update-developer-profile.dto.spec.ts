@@ -1,15 +1,15 @@
 import { validate } from 'class-validator';
 import { plainToClass } from 'class-transformer';
-import { 
-  AvailabilityDto, 
-  PortfolioLinkDto, 
-  PortfolioLinksDto, 
-  CertificationDto, 
-  EducationDto, 
-  WorkPreferencesDto, 
+import {
+  AvailabilityDto,
+  PortfolioLinkDto,
+  PortfolioLinksDto,
+  CertificationDto,
+  EducationDto,
+  WorkPreferencesDto,
   UpdateDeveloperProfileDto,
   AddSkillDto,
-  AvailabilityResponseDto
+  AvailabilityResponseDto,
 } from './update-developer-profile.dto';
 
 describe('AvailabilityDto', () => {
@@ -20,7 +20,7 @@ describe('AvailabilityDto', () => {
       timezone: 'UTC+3',
       noticePeriod: '2 weeks',
       maxHoursPerWeek: 40,
-      preferredProjectTypes: ['web', 'mobile']
+      preferredProjectTypes: ['web', 'mobile'],
     });
 
     const errors = await validate(dto);
@@ -30,7 +30,7 @@ describe('AvailabilityDto', () => {
   it('should validate with partial data', async () => {
     const dto = plainToClass(AvailabilityDto, {
       available: true,
-      timezone: 'UTC+3'
+      timezone: 'UTC+3',
     });
 
     const errors = await validate(dto);
@@ -39,7 +39,7 @@ describe('AvailabilityDto', () => {
 
   it('should fail with invalid boolean values', async () => {
     const dto = plainToClass(AvailabilityDto, {
-      available: 'invalid'
+      available: 'invalid',
     });
 
     const errors = await validate(dto);
@@ -48,7 +48,7 @@ describe('AvailabilityDto', () => {
 
   it('should fail with invalid number values', async () => {
     const dto = plainToClass(AvailabilityDto, {
-      maxHoursPerWeek: 'not-a-number'
+      maxHoursPerWeek: 'not-a-number',
     });
 
     const errors = await validate(dto);
@@ -57,7 +57,7 @@ describe('AvailabilityDto', () => {
 
   it('should fail with invalid array values', async () => {
     const dto = plainToClass(AvailabilityDto, {
-      preferredProjectTypes: 'not-an-array'
+      preferredProjectTypes: 'not-an-array',
     });
 
     const errors = await validate(dto);
@@ -70,7 +70,7 @@ describe('PortfolioLinkDto', () => {
     const dto = plainToClass(PortfolioLinkDto, {
       label: 'Instagram',
       url: 'https://instagram.com/user',
-      description: 'Portfolio showcase'
+      description: 'Portfolio showcase',
     });
 
     const errors = await validate(dto);
@@ -80,7 +80,7 @@ describe('PortfolioLinkDto', () => {
   it('should validate with minimal required data', async () => {
     const dto = plainToClass(PortfolioLinkDto, {
       label: 'Instagram',
-      url: 'https://instagram.com/user'
+      url: 'https://instagram.com/user',
     });
 
     const errors = await validate(dto);
@@ -89,7 +89,7 @@ describe('PortfolioLinkDto', () => {
 
   it('should fail without required label', async () => {
     const dto = plainToClass(PortfolioLinkDto, {
-      url: 'https://instagram.com/user'
+      url: 'https://instagram.com/user',
     });
 
     const errors = await validate(dto);
@@ -98,7 +98,7 @@ describe('PortfolioLinkDto', () => {
 
   it('should fail without required url', async () => {
     const dto = plainToClass(PortfolioLinkDto, {
-      label: 'Instagram'
+      label: 'Instagram',
     });
 
     const errors = await validate(dto);
@@ -117,9 +117,9 @@ describe('PortfolioLinksDto', () => {
         {
           label: 'Instagram',
           url: 'https://instagram.com/user',
-          description: 'Portfolio showcase'
-        }
-      ]
+          description: 'Portfolio showcase',
+        },
+      ],
     });
 
     const errors = await validate(dto);
@@ -128,7 +128,7 @@ describe('PortfolioLinksDto', () => {
 
   it('should validate with partial data', async () => {
     const dto = plainToClass(PortfolioLinksDto, {
-      github: 'https://github.com/user'
+      github: 'https://github.com/user',
     });
 
     const errors = await validate(dto);
@@ -139,10 +139,10 @@ describe('PortfolioLinksDto', () => {
     const dto = plainToClass(PortfolioLinksDto, {
       customLinks: [
         {
-          label: 'Instagram'
+          label: 'Instagram',
           // Missing required url
-        }
-      ]
+        },
+      ],
     });
 
     const errors = await validate(dto);
@@ -157,7 +157,7 @@ describe('CertificationDto', () => {
       issuer: 'Amazon',
       dateObtained: '2023-01-15',
       expiryDate: '2025-01-15',
-      credentialId: '12345-abcde'
+      credentialId: '12345-abcde',
     });
 
     const errors = await validate(dto);
@@ -168,7 +168,7 @@ describe('CertificationDto', () => {
     const dto = plainToClass(CertificationDto, {
       name: 'AWS Certified Solutions Architect',
       issuer: 'Amazon',
-      dateObtained: '2023-01-15'
+      dateObtained: '2023-01-15',
     });
 
     const errors = await validate(dto);
@@ -178,7 +178,7 @@ describe('CertificationDto', () => {
   it('should fail without required name', async () => {
     const dto = plainToClass(CertificationDto, {
       issuer: 'Amazon',
-      dateObtained: '2023-01-15'
+      dateObtained: '2023-01-15',
     });
 
     const errors = await validate(dto);
@@ -188,7 +188,7 @@ describe('CertificationDto', () => {
   it('should fail without required issuer', async () => {
     const dto = plainToClass(CertificationDto, {
       name: 'AWS Certified Solutions Architect',
-      dateObtained: '2023-01-15'
+      dateObtained: '2023-01-15',
     });
 
     const errors = await validate(dto);
@@ -198,7 +198,7 @@ describe('CertificationDto', () => {
   it('should fail without required dateObtained', async () => {
     const dto = plainToClass(CertificationDto, {
       name: 'AWS Certified Solutions Architect',
-      issuer: 'Amazon'
+      issuer: 'Amazon',
     });
 
     const errors = await validate(dto);
@@ -216,9 +216,9 @@ describe('EducationDto', () => {
         {
           name: 'AWS Certified Solutions Architect',
           issuer: 'Amazon',
-          dateObtained: '2023-01-15'
-        }
-      ]
+          dateObtained: '2023-01-15',
+        },
+      ],
     });
 
     const errors = await validate(dto);
@@ -227,7 +227,7 @@ describe('EducationDto', () => {
 
   it('should validate with partial data', async () => {
     const dto = plainToClass(EducationDto, {
-      degree: "Bachelor's in Computer Science"
+      degree: "Bachelor's in Computer Science",
     });
 
     const errors = await validate(dto);
@@ -236,7 +236,7 @@ describe('EducationDto', () => {
 
   it('should fail with invalid graduation year', async () => {
     const dto = plainToClass(EducationDto, {
-      graduationYear: 'not-a-number'
+      graduationYear: 'not-a-number',
     });
 
     const errors = await validate(dto);
@@ -247,10 +247,10 @@ describe('EducationDto', () => {
     const dto = plainToClass(EducationDto, {
       certifications: [
         {
-          name: 'AWS Certified Solutions Architect'
+          name: 'AWS Certified Solutions Architect',
           // Missing required fields
-        }
-      ]
+        },
+      ],
     });
 
     const errors = await validate(dto);
@@ -267,7 +267,7 @@ describe('WorkPreferencesDto', () => {
       travelWillingness: 'national',
       contractTypes: ['hourly', 'fixed'],
       minProjectDuration: '1-2 weeks',
-      maxProjectDuration: '6+ months'
+      maxProjectDuration: '6+ months',
     });
 
     const errors = await validate(dto);
@@ -276,7 +276,7 @@ describe('WorkPreferencesDto', () => {
 
   it('should validate with partial data', async () => {
     const dto = plainToClass(WorkPreferencesDto, {
-      remoteWork: true
+      remoteWork: true,
     });
 
     const errors = await validate(dto);
@@ -285,7 +285,7 @@ describe('WorkPreferencesDto', () => {
 
   it('should fail with invalid boolean values', async () => {
     const dto = plainToClass(WorkPreferencesDto, {
-      remoteWork: 'invalid'
+      remoteWork: 'invalid',
     });
 
     const errors = await validate(dto);
@@ -294,7 +294,7 @@ describe('WorkPreferencesDto', () => {
 
   it('should fail with invalid array values', async () => {
     const dto = plainToClass(WorkPreferencesDto, {
-      contractTypes: 'not-an-array'
+      contractTypes: 'not-an-array',
     });
 
     const errors = await validate(dto);
@@ -312,20 +312,20 @@ describe('UpdateDeveloperProfileDto', () => {
       availability: {
         available: true,
         hours: '9-5',
-        timezone: 'UTC+3'
+        timezone: 'UTC+3',
       },
       portfolioLinks: {
         github: 'https://github.com/user',
-        linkedin: 'https://linkedin.com/in/user'
+        linkedin: 'https://linkedin.com/in/user',
       },
       education: {
         degree: "Bachelor's in Computer Science",
-        institution: 'MIT'
+        institution: 'MIT',
       },
       workPreferences: {
         remoteWork: true,
-        contractTypes: ['hourly', 'fixed']
-      }
+        contractTypes: ['hourly', 'fixed'],
+      },
     });
 
     const errors = await validate(dto);
@@ -334,7 +334,7 @@ describe('UpdateDeveloperProfileDto', () => {
 
   it('should validate with partial data', async () => {
     const dto = plainToClass(UpdateDeveloperProfileDto, {
-      skills: ['JavaScript', 'React']
+      skills: ['JavaScript', 'React'],
     });
 
     const errors = await validate(dto);
@@ -343,7 +343,7 @@ describe('UpdateDeveloperProfileDto', () => {
 
   it('should fail with invalid experience', async () => {
     const dto = plainToClass(UpdateDeveloperProfileDto, {
-      experience: 'not-a-number'
+      experience: 'not-a-number',
     });
 
     const errors = await validate(dto);
@@ -352,7 +352,7 @@ describe('UpdateDeveloperProfileDto', () => {
 
   it('should fail with invalid hourly rate', async () => {
     const dto = plainToClass(UpdateDeveloperProfileDto, {
-      hourlyRate: 'not-a-number'
+      hourlyRate: 'not-a-number',
     });
 
     const errors = await validate(dto);
@@ -361,7 +361,7 @@ describe('UpdateDeveloperProfileDto', () => {
 
   it('should fail with invalid skills array', async () => {
     const dto = plainToClass(UpdateDeveloperProfileDto, {
-      skills: 'not-an-array'
+      skills: 'not-an-array',
     });
 
     const errors = await validate(dto);
@@ -371,8 +371,8 @@ describe('UpdateDeveloperProfileDto', () => {
   it('should fail with invalid nested objects', async () => {
     const dto = plainToClass(UpdateDeveloperProfileDto, {
       availability: {
-        available: 'invalid'
-      }
+        available: 'invalid',
+      },
     });
 
     const errors = await validate(dto);
@@ -383,7 +383,7 @@ describe('UpdateDeveloperProfileDto', () => {
 describe('AddSkillDto', () => {
   it('should validate valid skill addition', async () => {
     const dto = plainToClass(AddSkillDto, {
-      skill: 'TypeScript'
+      skill: 'TypeScript',
     });
 
     const errors = await validate(dto);
@@ -399,7 +399,7 @@ describe('AddSkillDto', () => {
 
   it('should fail with empty skill string', async () => {
     const dto = plainToClass(AddSkillDto, {
-      skill: ''
+      skill: '',
     });
 
     const errors = await validate(dto);
@@ -412,12 +412,12 @@ describe('AvailabilityResponseDto', () => {
     const dto = plainToClass(AvailabilityResponseDto, {
       availability: {
         available: true,
-        timezone: 'UTC+3'
+        timezone: 'UTC+3',
       },
       workPreferences: {
         remoteWork: true,
-        contractTypes: ['hourly']
-      }
+        contractTypes: ['hourly'],
+      },
     });
 
     const errors = await validate(dto);
@@ -427,8 +427,8 @@ describe('AvailabilityResponseDto', () => {
   it('should validate with partial data', async () => {
     const dto = plainToClass(AvailabilityResponseDto, {
       availability: {
-        available: true
-      }
+        available: true,
+      },
     });
 
     const errors = await validate(dto);
@@ -438,8 +438,8 @@ describe('AvailabilityResponseDto', () => {
   it('should fail with invalid nested objects', async () => {
     const dto = plainToClass(AvailabilityResponseDto, {
       availability: {
-        available: 'invalid'
-      }
+        available: 'invalid',
+      },
     });
 
     const errors = await validate(dto);

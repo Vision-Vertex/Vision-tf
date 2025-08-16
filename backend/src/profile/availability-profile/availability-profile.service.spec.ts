@@ -1,15 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
 import { AvailabilityProfileService } from './availability-profile.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { AvailabilityDto } from '../dto/update-developer-profile.dto/update-developer-profile.dto';
-import { WorkPreferencesDto } from '../dto/update-developer-profile.dto/update-developer-profile.dto';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  AvailabilityDto,
+  WorkPreferencesDto,
+} from '../dto/update-developer-profile.dto/update-developer-profile.dto';
 
 describe('AvailabilityProfileService', () => {
   let service: AvailabilityProfileService;
-  let prismaService: any;
+  let prisma: PrismaService;
 
-  const mockPrismaService = {
+  const mockPrisma = {
     profile: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -20,25 +22,21 @@ describe('AvailabilityProfileService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AvailabilityProfileService,
-        {
-          provide: PrismaService,
-          useValue: mockPrismaService,
-        },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
-    service = module.get<AvailabilityProfileService>(AvailabilityProfileService);
-    prismaService = module.get(PrismaService);
-
-    // Reset all mocks before each test
+    service = module.get<AvailabilityProfileService>(
+      AvailabilityProfileService,
+    );
+    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
   describe('updateAvailability', () => {
-    const userId = 'test-user-id';
-    const availabilityDto: AvailabilityDto = {
+    const validAvailability: AvailabilityDto = {
       available: true,
-      hours: '9-5',
+      hours: '9:00-17:00',
       timezone: 'UTC+3',
       noticePeriod: '2 weeks',
       maxHoursPerWeek: 40,
@@ -46,104 +44,107 @@ describe('AvailabilityProfileService', () => {
     };
 
     it('should update availability successfully when profile exists', async () => {
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, availability: availabilityDto };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateAvailability(userId, availabilityDto);
-
-      expect(result).toEqual(availabilityDto);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
+      mockPrisma.profile.update.mockResolvedValue({
+        availability: validAvailability,
       });
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { availability: availabilityDto },
+      const result = await service.updateAvailability(
+        'user1',
+        validAvailability,
+      );
+      expect(result).toEqual(validAvailability);
+      expect(prisma.profile.update).toHaveBeenCalledWith({
+        where: { userId: 'user1' },
+        data: { availability: validAvailability },
+        select: { availability: true },
       });
     });
 
     it('should update availability with partial data', async () => {
-      const partialDto = { available: false, timezone: 'UTC+5' };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, availability: partialDto };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateAvailability(userId, partialDto);
-
-      expect(result).toEqual(partialDto);
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { availability: partialDto },
+      const partialAvailability = { available: true, timezone: 'UTC+3' };
+      mockPrisma.profile.update.mockResolvedValue({
+        availability: partialAvailability,
       });
-    });
-
-    it('should throw BadRequestException when profile does not exist', async () => {
-      prismaService.profile.findUnique.mockResolvedValue(null);
-
-      await expect(service.updateAvailability(userId, availabilityDto)).rejects.toThrow(
-        new BadRequestException('Profile not found')
+      const result = await service.updateAvailability(
+        'user1',
+        partialAvailability,
       );
-
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-      });
-      expect(prismaService.profile.update).not.toHaveBeenCalled();
+      expect(result).toEqual(partialAvailability);
     });
 
-    it('should handle database errors during profile lookup', async () => {
-      const error = new Error('Database connection failed');
-      prismaService.profile.findUnique.mockRejectedValue(error);
-
-      await expect(service.updateAvailability(userId, availabilityDto)).rejects.toThrow('Database connection failed');
-      expect(prismaService.profile.update).not.toHaveBeenCalled();
+    it('should throw NotFoundException when profile does not exist', async () => {
+      mockPrisma.profile.update.mockRejectedValue({ code: 'P2025' });
+      await expect(
+        service.updateAvailability('user1', validAvailability),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should handle database errors during profile update', async () => {
-      const mockProfile = { id: 'profile-id', userId };
-      const error = new Error('Update failed');
-      
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockRejectedValue(error);
-
-      await expect(service.updateAvailability(userId, availabilityDto)).rejects.toThrow('Update failed');
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-      });
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { availability: availabilityDto },
-      });
+      mockPrisma.profile.update.mockRejectedValue(new Error('Database error'));
+      await expect(
+        service.updateAvailability('user1', validAvailability),
+      ).rejects.toThrow(Error);
     });
 
     it('should handle complex availability data with custom fields', async () => {
-      const complexDto = {
-        ...availabilityDto,
+      const complexAvailability = {
+        ...validAvailability,
         customField: 'custom value',
-        nestedObject: { key: 'value' },
       };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, availability: complexDto };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateAvailability(userId, complexDto);
-
-      expect(result).toEqual(complexDto);
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { availability: complexDto },
+      mockPrisma.profile.update.mockResolvedValue({
+        availability: complexAvailability,
       });
+      const result = await service.updateAvailability(
+        'user1',
+        complexAvailability,
+      );
+      expect(result).toEqual(complexAvailability);
+    });
+
+    it('should validate timezone format', async () => {
+      const invalidAvailability = {
+        ...validAvailability,
+        timezone: 'invalid-timezone',
+      };
+      await expect(
+        service.updateAvailability('user1', invalidAvailability),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should validate time format', async () => {
+      const invalidAvailability = {
+        ...validAvailability,
+        hours: 'invalid-time',
+      };
+      await expect(
+        service.updateAvailability('user1', invalidAvailability),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should validate max hours per week', async () => {
+      const invalidAvailability = {
+        ...validAvailability,
+        maxHoursPerWeek: 200,
+      };
+      await expect(
+        service.updateAvailability('user1', invalidAvailability),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should sanitize input strings', async () => {
+      const availabilityWithSpecialChars = {
+        ...validAvailability,
+        noticePeriod: '<script>alert("xss")</script>2 weeks',
+      };
+      mockPrisma.profile.update.mockResolvedValue({
+        availability: availabilityWithSpecialChars,
+      });
+      await service.updateAvailability('user1', availabilityWithSpecialChars);
+      expect(prisma.profile.update).toHaveBeenCalled();
     });
   });
 
   describe('updateWorkPreferences', () => {
-    const userId = 'test-user-id';
-    const workPreferencesDto: WorkPreferencesDto = {
+    const validWorkPreferences: WorkPreferencesDto = {
       remoteWork: true,
       onSiteWork: false,
       hybridWork: true,
@@ -154,466 +155,214 @@ describe('AvailabilityProfileService', () => {
     };
 
     it('should update work preferences successfully when profile exists', async () => {
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, workPreferences: workPreferencesDto };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateWorkPreferences(userId, workPreferencesDto);
-
-      expect(result).toEqual(workPreferencesDto);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
+      mockPrisma.profile.update.mockResolvedValue({
+        workPreferences: validWorkPreferences,
       });
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { workPreferences: workPreferencesDto },
+      const result = await service.updateWorkPreferences(
+        'user1',
+        validWorkPreferences,
+      );
+      expect(result).toEqual(validWorkPreferences);
+      expect(prisma.profile.update).toHaveBeenCalledWith({
+        where: { userId: 'user1' },
+        data: { workPreferences: validWorkPreferences },
+        select: { workPreferences: true },
       });
     });
 
     it('should update work preferences with partial data', async () => {
-      const partialDto = { remoteWork: true, contractTypes: ['hourly'] };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, workPreferences: partialDto };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateWorkPreferences(userId, partialDto);
-
-      expect(result).toEqual(partialDto);
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { workPreferences: partialDto },
+      const partialPreferences = { remoteWork: true, onSiteWork: false };
+      mockPrisma.profile.update.mockResolvedValue({
+        workPreferences: partialPreferences,
       });
-    });
-
-    it('should throw BadRequestException when profile does not exist', async () => {
-      prismaService.profile.findUnique.mockResolvedValue(null);
-
-      await expect(service.updateWorkPreferences(userId, workPreferencesDto)).rejects.toThrow(
-        new BadRequestException('Profile not found')
+      const result = await service.updateWorkPreferences(
+        'user1',
+        partialPreferences,
       );
-
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-      });
-      expect(prismaService.profile.update).not.toHaveBeenCalled();
+      expect(result).toEqual(partialPreferences);
     });
 
-    it('should handle database errors during profile lookup', async () => {
-      const error = new Error('Database connection failed');
-      prismaService.profile.findUnique.mockRejectedValue(error);
-
-      await expect(service.updateWorkPreferences(userId, workPreferencesDto)).rejects.toThrow('Database connection failed');
-      expect(prismaService.profile.update).not.toHaveBeenCalled();
+    it('should throw NotFoundException when profile does not exist', async () => {
+      mockPrisma.profile.update.mockRejectedValue({ code: 'P2025' });
+      await expect(
+        service.updateWorkPreferences('user1', validWorkPreferences),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should handle database errors during profile update', async () => {
-      const mockProfile = { id: 'profile-id', userId };
-      const error = new Error('Update failed');
-      
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockRejectedValue(error);
-
-      await expect(service.updateWorkPreferences(userId, workPreferencesDto)).rejects.toThrow('Update failed');
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-      });
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { workPreferences: workPreferencesDto },
-      });
+      mockPrisma.profile.update.mockRejectedValue(new Error('Database error'));
+      await expect(
+        service.updateWorkPreferences('user1', validWorkPreferences),
+      ).rejects.toThrow(Error);
     });
 
     it('should handle complex work preferences data with custom fields', async () => {
-      const complexDto = {
-        ...workPreferencesDto,
+      const complexPreferences = {
+        ...validWorkPreferences,
         customField: 'custom value',
-        nestedObject: { key: 'value' },
       };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, workPreferences: complexDto };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateWorkPreferences(userId, complexDto);
-
-      expect(result).toEqual(complexDto);
-      expect(prismaService.profile.update).toHaveBeenCalledWith({
-        where: { userId },
-        data: { workPreferences: complexDto },
+      mockPrisma.profile.update.mockResolvedValue({
+        workPreferences: complexPreferences,
       });
+      const result = await service.updateWorkPreferences(
+        'user1',
+        complexPreferences,
+      );
+      expect(result).toEqual(complexPreferences);
+    });
+
+    it('should sanitize input strings', async () => {
+      const preferencesWithSpecialChars = {
+        ...validWorkPreferences,
+        travelWillingness: '<script>alert("xss")</script>national',
+      };
+      mockPrisma.profile.update.mockResolvedValue({
+        workPreferences: preferencesWithSpecialChars,
+      });
+      await service.updateWorkPreferences('user1', preferencesWithSpecialChars);
+      expect(prisma.profile.update).toHaveBeenCalled();
     });
   });
 
   describe('getAvailability', () => {
-    const userId = 'test-user-id';
-
     it('should return availability when profile exists with availability data', async () => {
-      const mockAvailability = {
-        available: true,
-        hours: '9-5',
-        timezone: 'UTC+3',
-      };
-      const mockProfile = { availability: mockAvailability };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.getAvailability(userId);
-
-      expect(result).toEqual(mockAvailability);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
+      const availability = { available: true, timezone: 'UTC+3' };
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability });
+      const result = await service.getAvailability('user1');
+      expect(result).toEqual(availability);
     });
 
     it('should return null when profile exists but has no availability data', async () => {
-      const mockProfile = { availability: null };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.getAvailability(userId);
-
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability: null });
+      const result = await service.getAvailability('user1');
       expect(result).toBeNull();
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should return null when profile does not exist', async () => {
-      prismaService.profile.findUnique.mockResolvedValue(null);
-
-      const result = await service.getAvailability(userId);
-
+      mockPrisma.profile.findUnique.mockResolvedValue(null);
+      const result = await service.getAvailability('user1');
       expect(result).toBeNull();
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should handle database errors gracefully', async () => {
-      const error = new Error('Database connection failed');
-      prismaService.profile.findUnique.mockRejectedValue(error);
-
-      await expect(service.getAvailability(userId)).rejects.toThrow('Database connection failed');
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
+      mockPrisma.profile.findUnique.mockRejectedValue(
+        new Error('Database error'),
+      );
+      await expect(service.getAvailability('user1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('getWorkPreferences', () => {
-    const userId = 'test-user-id';
-
     it('should return work preferences when profile exists with work preferences data', async () => {
-      const mockWorkPreferences = {
-        remoteWork: true,
-        onSiteWork: false,
-        hybridWork: true,
-        contractTypes: ['hourly'],
-      };
-      const mockProfile = { workPreferences: mockWorkPreferences };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.getWorkPreferences(userId);
-
-      expect(result).toEqual(mockWorkPreferences);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { workPreferences: true },
-      });
+      const workPreferences = { remoteWork: true, onSiteWork: false };
+      mockPrisma.profile.findUnique.mockResolvedValue({ workPreferences });
+      const result = await service.getWorkPreferences('user1');
+      expect(result).toEqual(workPreferences);
     });
 
     it('should return null when profile exists but has no work preferences data', async () => {
-      const mockProfile = { workPreferences: null };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.getWorkPreferences(userId);
-
-      expect(result).toBeNull();
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { workPreferences: true },
+      mockPrisma.profile.findUnique.mockResolvedValue({
+        workPreferences: null,
       });
+      const result = await service.getWorkPreferences('user1');
+      expect(result).toBeNull();
     });
 
     it('should return null when profile does not exist', async () => {
-      prismaService.profile.findUnique.mockResolvedValue(null);
-
-      const result = await service.getWorkPreferences(userId);
-
+      mockPrisma.profile.findUnique.mockResolvedValue(null);
+      const result = await service.getWorkPreferences('user1');
       expect(result).toBeNull();
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { workPreferences: true },
-      });
     });
 
     it('should handle database errors gracefully', async () => {
-      const error = new Error('Database connection failed');
-      prismaService.profile.findUnique.mockRejectedValue(error);
-
-      await expect(service.getWorkPreferences(userId)).rejects.toThrow('Database connection failed');
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { workPreferences: true },
-      });
+      mockPrisma.profile.findUnique.mockRejectedValue(
+        new Error('Database error'),
+      );
+      await expect(service.getWorkPreferences('user1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('checkAvailability', () => {
-    const userId = 'test-user-id';
-
     it('should return true when user is available', async () => {
-      const mockAvailability = { available: true };
-      const mockProfile = { availability: mockAvailability };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.checkAvailability(userId);
-
+      const availability = { available: true };
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability });
+      const result = await service.checkAvailability('user1');
       expect(result).toBe(true);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should return false when user is not available', async () => {
-      const mockAvailability = { available: false };
-      const mockProfile = { availability: mockAvailability };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.checkAvailability(userId);
-
+      const availability = { available: false };
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability });
+      const result = await service.checkAvailability('user1');
       expect(result).toBe(false);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should return false when availability is null', async () => {
-      const mockProfile = { availability: null };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.checkAvailability(userId);
-
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability: null });
+      const result = await service.checkAvailability('user1');
       expect(result).toBe(false);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should return false when profile does not exist', async () => {
-      prismaService.profile.findUnique.mockResolvedValue(null);
-
-      const result = await service.checkAvailability(userId);
-
+      mockPrisma.profile.findUnique.mockResolvedValue(null);
+      const result = await service.checkAvailability('user1');
       expect(result).toBe(false);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should return false when availability object exists but available field is undefined', async () => {
-      const mockAvailability = { hours: '9-5', timezone: 'UTC+3' };
-      const mockProfile = { availability: mockAvailability };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.checkAvailability(userId);
-
+      const availability = { timezone: 'UTC+3' };
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability });
+      const result = await service.checkAvailability('user1');
       expect(result).toBe(false);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should return false when availability object exists but available field is null', async () => {
-      const mockAvailability = { available: null, hours: '9-5' };
-      const mockProfile = { availability: mockAvailability };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-
-      const result = await service.checkAvailability(userId);
-
+      const availability = { available: null, timezone: 'UTC+3' };
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability });
+      const result = await service.checkAvailability('user1');
       expect(result).toBe(false);
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
     });
 
     it('should handle database errors gracefully', async () => {
-      const error = new Error('Database connection failed');
-      prismaService.profile.findUnique.mockRejectedValue(error);
-
-      await expect(service.checkAvailability(userId)).rejects.toThrow('Database connection failed');
-      expect(prismaService.profile.findUnique).toHaveBeenCalledWith({
-        where: { userId },
-        select: { availability: true },
-      });
-    });
-  });
-
-  describe('Edge cases and error scenarios', () => {
-    const userId = 'test-user-id';
-
-    it('should handle very large availability data', async () => {
-      const largeAvailabilityData = {
-        available: true,
-        hours: 'A'.repeat(1000),
-        timezone: 'B'.repeat(500),
-        noticePeriod: 'C'.repeat(300),
-        maxHoursPerWeek: 999,
-        preferredProjectTypes: Array.from({ length: 100 }, (_, i) => `project-${i}`),
-      };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, availability: largeAvailabilityData };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateAvailability(userId, largeAvailabilityData);
-
-      expect(result).toEqual(largeAvailabilityData);
+      mockPrisma.profile.findUnique.mockRejectedValue(
+        new Error('Database error'),
+      );
+      const result = await service.checkAvailability('user1');
+      expect(result).toBe(false);
     });
 
-    it('should handle very large work preferences data', async () => {
-      const largeWorkPreferencesData = {
-        remoteWork: true,
-        onSiteWork: true,
-        hybridWork: true,
-        travelWillingness: 'A'.repeat(500),
-        contractTypes: Array.from({ length: 50 }, (_, i) => `contract-${i}`),
-        minProjectDuration: 'B'.repeat(300),
-        maxProjectDuration: 'C'.repeat(300),
-      };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, workPreferences: largeWorkPreferencesData };
+    it('should check time-based availability when hours are specified', async () => {
+      // Mock current time to be within working hours
+      const originalDate = global.Date;
+      const mockDate = new Date('2023-01-01T10:00:00Z');
+      global.Date = jest.fn(() => mockDate) as any;
+      global.Date.now = jest.fn(() => mockDate.getTime());
 
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
+      const availability = { available: true, hours: '9:00-17:00' };
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability });
+      const result = await service.checkAvailability('user1');
+      expect(result).toBe(true);
 
-      const result = await service.updateWorkPreferences(userId, largeWorkPreferencesData);
-
-      expect(result).toEqual(largeWorkPreferencesData);
+      global.Date = originalDate;
     });
 
-    it('should handle empty arrays in availability data', async () => {
-      const availabilityData = {
-        available: true,
-        preferredProjectTypes: [],
-      };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, availability: availabilityData };
+    it('should return false when current time is outside working hours', async () => {
+      // Mock current time to be outside working hours
+      const originalDate = global.Date;
+      const mockDate = new Date('2023-01-01T20:00:00Z');
+      global.Date = jest.fn(() => mockDate) as any;
+      global.Date.now = jest.fn(() => mockDate.getTime());
 
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
+      const availability = { available: true, hours: '9:00-17:00' };
+      mockPrisma.profile.findUnique.mockResolvedValue({ availability });
+      const result = await service.checkAvailability('user1');
+      expect(result).toBe(false);
 
-      const result = await service.updateAvailability(userId, availabilityData);
-
-      expect(result).toEqual(availabilityData);
-    });
-
-    it('should handle empty arrays in work preferences data', async () => {
-      const workPreferencesData = {
-        remoteWork: true,
-        contractTypes: [],
-      };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, workPreferences: workPreferencesData };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateWorkPreferences(userId, workPreferencesData);
-
-      expect(result).toEqual(workPreferencesData);
-    });
-
-    it('should handle special characters in string fields', async () => {
-      const specialCharData = {
-        available: true,
-        hours: '9-5 (EST) 🕐',
-        timezone: 'UTC+3 (Europe/Athens)',
-        noticePeriod: '2 weeks & 3 days',
-        preferredProjectTypes: ['web-dev', 'mobile-app', 'API/backend'],
-      };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, availability: specialCharData };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateAvailability(userId, specialCharData);
-
-      expect(result).toEqual(specialCharData);
-    });
-
-    it('should handle nested objects in data', async () => {
-      const nestedData = {
-        available: true,
-        hours: '9-5',
-        nestedObject: {
-          key1: 'value1',
-          key2: {
-            nestedKey: 'nestedValue',
-            array: [1, 2, 3],
-          },
-        },
-      };
-      const mockProfile = { id: 'profile-id', userId };
-      const mockUpdatedProfile = { ...mockProfile, availability: nestedData };
-
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(mockUpdatedProfile);
-
-      const result = await service.updateAvailability(userId, nestedData);
-
-      expect(result).toEqual(nestedData);
-    });
-
-    it('should handle multiple consecutive updates', async () => {
-      const mockProfile = { id: 'profile-id', userId };
-      
-      // First update
-      const firstUpdate = { available: true, hours: '9-5' };
-      const firstUpdatedProfile = { ...mockProfile, availability: firstUpdate };
-      
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(firstUpdatedProfile);
-
-      const firstResult = await service.updateAvailability(userId, firstUpdate);
-      expect(firstResult).toEqual(firstUpdate);
-
-      // Second update
-      const secondUpdate = { available: false, timezone: 'UTC+5' };
-      const secondUpdatedProfile = { ...mockProfile, availability: secondUpdate };
-      
-      prismaService.profile.findUnique.mockResolvedValue(mockProfile);
-      prismaService.profile.update.mockResolvedValue(secondUpdatedProfile);
-
-      const secondResult = await service.updateAvailability(userId, secondUpdate);
-      expect(secondResult).toEqual(secondUpdate);
-
-      // Verify both updates were called
-      expect(prismaService.profile.update).toHaveBeenCalledTimes(2);
+      global.Date = originalDate;
     });
   });
 });

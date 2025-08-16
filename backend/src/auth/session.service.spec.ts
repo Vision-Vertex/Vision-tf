@@ -74,7 +74,9 @@ describe('SessionService', () => {
 
   // Helper function to setup device fingerprint mocks
   const setupDeviceFingerprintMocks = (deviceName = 'Chrome Browser') => {
-    deviceFingerprintService.createFingerprint.mockReturnValue('fingerprint-123');
+    deviceFingerprintService.createFingerprint.mockReturnValue(
+      'fingerprint-123',
+    );
     deviceFingerprintService.parseDeviceInfo.mockReturnValue({
       browser: 'Chrome',
       os: 'Windows',

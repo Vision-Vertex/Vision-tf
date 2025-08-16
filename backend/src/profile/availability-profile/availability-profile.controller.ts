@@ -1,5 +1,13 @@
 import { Controller, Get, Patch, Body, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiOkResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiForbiddenResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiOkResponse,
+  ApiBadRequestResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
 import { SuccessResponse } from '../../common/dto/api-response.dto';
 import { AvailabilityProfileService } from './availability-profile.service';
 import { AvailabilityDto } from '../dto/update-developer-profile.dto/update-developer-profile.dto';
@@ -20,20 +28,21 @@ export class AvailabilityProfileController {
   @Roles(UserRole.DEVELOPER)
   @ApiOperation({
     summary: 'Update developer availability',
-    description: 'Updates the availability settings for the authenticated developer. Includes work hours, timezone, notice period, and project preferences.',
+    description:
+      'Updates the availability settings for the authenticated developer. Includes work hours, timezone, notice period, and project preferences.',
   })
-  @ApiOkResponse({ 
-    description: 'Availability updated successfully', 
-    type: SuccessResponse 
+  @ApiOkResponse({
+    description: 'Availability updated successfully',
+    type: SuccessResponse,
   })
-  @ApiBadRequestResponse({ 
-    description: 'Invalid data or profile not found' 
+  @ApiBadRequestResponse({
+    description: 'Invalid data or profile not found',
   })
-  @ApiUnauthorizedResponse({ 
-    description: 'Unauthorized - JWT token required' 
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - JWT token required',
   })
-  @ApiForbiddenResponse({ 
-    description: 'Forbidden - Developer role required' 
+  @ApiForbiddenResponse({
+    description: 'Forbidden - Developer role required',
   })
   updateAvailability(@Req() req: any, @Body() dto: AvailabilityDto) {
     return this.service.updateAvailability(req.user.userId, dto);
@@ -43,20 +52,21 @@ export class AvailabilityProfileController {
   @Roles(UserRole.DEVELOPER)
   @ApiOperation({
     summary: 'Update developer work preferences',
-    description: 'Updates the work preferences for the authenticated developer. Includes remote work options, travel willingness, contract types, and project duration preferences.',
+    description:
+      'Updates the work preferences for the authenticated developer. Includes remote work options, travel willingness, contract types, and project duration preferences.',
   })
-  @ApiOkResponse({ 
-    description: 'Work preferences updated successfully', 
-    type: SuccessResponse 
+  @ApiOkResponse({
+    description: 'Work preferences updated successfully',
+    type: SuccessResponse,
   })
-  @ApiBadRequestResponse({ 
-    description: 'Invalid data or profile not found' 
+  @ApiBadRequestResponse({
+    description: 'Invalid data or profile not found',
   })
-  @ApiUnauthorizedResponse({ 
-    description: 'Unauthorized - JWT token required' 
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - JWT token required',
   })
-  @ApiForbiddenResponse({ 
-    description: 'Forbidden - Developer role required' 
+  @ApiForbiddenResponse({
+    description: 'Forbidden - Developer role required',
   })
   updateWorkPreferences(@Req() req: any, @Body() dto: WorkPreferencesDto) {
     return this.service.updateWorkPreferences(req.user.userId, dto);
@@ -66,20 +76,21 @@ export class AvailabilityProfileController {
   @Roles(UserRole.DEVELOPER)
   @ApiOperation({
     summary: 'Get developer availability',
-    description: 'Retrieves the current availability settings for the authenticated developer.',
+    description:
+      'Retrieves the current availability settings for the authenticated developer.',
   })
-  @ApiOkResponse({ 
-    description: 'Availability retrieved successfully', 
-    type: SuccessResponse 
+  @ApiOkResponse({
+    description: 'Availability retrieved successfully',
+    type: SuccessResponse,
   })
-  @ApiBadRequestResponse({ 
-    description: 'Invalid request data' 
+  @ApiBadRequestResponse({
+    description: 'Invalid request data',
   })
-  @ApiUnauthorizedResponse({ 
-    description: 'Unauthorized - JWT token required' 
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - JWT token required',
   })
-  @ApiForbiddenResponse({ 
-    description: 'Forbidden - Developer role required' 
+  @ApiForbiddenResponse({
+    description: 'Forbidden - Developer role required',
   })
   getAvailability(@Req() req: any) {
     return this.service.getAvailability(req.user.userId);
@@ -89,22 +100,62 @@ export class AvailabilityProfileController {
   @Roles(UserRole.DEVELOPER)
   @ApiOperation({
     summary: 'Get developer work preferences',
-    description: 'Retrieves the current work preferences for the authenticated developer.',
+    description:
+      'Retrieves the current work preferences for the authenticated developer.',
   })
-  @ApiOkResponse({ 
-    description: 'Work preferences retrieved successfully', 
-    type: SuccessResponse 
+  @ApiOkResponse({
+    description: 'Work preferences retrieved successfully',
+    type: SuccessResponse,
   })
-  @ApiBadRequestResponse({ 
-    description: 'Invalid request data' 
+  @ApiBadRequestResponse({
+    description: 'Invalid request data',
   })
-  @ApiUnauthorizedResponse({ 
-    description: 'Unauthorized - JWT token required' 
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - JWT token required',
   })
-  @ApiForbiddenResponse({ 
-    description: 'Forbidden - Developer role required' 
+  @ApiForbiddenResponse({
+    description: 'Forbidden - Developer role required',
   })
   getWorkPreferences(@Req() req: any) {
     return this.service.getWorkPreferences(req.user.userId);
+  }
+
+  @Get('check')
+  @Roles(UserRole.DEVELOPER)
+  @ApiOperation({
+    summary: 'Check developer availability status',
+    description:
+      'Checks if the developer is currently available for work based on their availability settings and current time.',
+  })
+  @ApiOkResponse({
+    description: 'Availability status retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        available: {
+          type: 'boolean',
+          description: 'Whether the developer is currently available',
+        },
+        message: { type: 'string', description: 'Status message' },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid request data or profile not found',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - JWT token required',
+  })
+  @ApiForbiddenResponse({
+    description: 'Forbidden - Developer role required',
+  })
+  async checkAvailability(@Req() req: any) {
+    const isAvailable = await this.service.checkAvailability(req.user.userId);
+    return {
+      available: isAvailable,
+      message: isAvailable
+        ? 'Developer is currently available'
+        : 'Developer is not currently available',
+    };
   }
 }

@@ -44,6 +44,6 @@ dotenv.config();
     JwtAuthGuard,
   ],
   controllers: [AuthController],
-  exports: [AuthService, JwtAuthGuard, SessionService,JwtModule],
+  exports: [AuthService, JwtAuthGuard, SessionService, JwtModule],
 })
 export class AuthModule {}

@@ -1,9 +1,21 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsObject, ValidateNested, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsArray,
+  IsObject,
+  ValidateNested,
+  IsNotEmpty,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class AvailabilityDto {
-  @ApiPropertyOptional({ description: 'Currently available for work', example: true })
+  @ApiPropertyOptional({
+    description: 'Currently available for work',
+    example: true,
+  })
   @IsBoolean()
   @IsOptional()
   available?: boolean;
@@ -28,49 +40,76 @@ export class AvailabilityDto {
   @IsOptional()
   maxHoursPerWeek?: number;
 
-  @ApiPropertyOptional({ description: 'Preferred project types', example: ['web', 'mobile'] })
+  @ApiPropertyOptional({
+    description: 'Preferred project types',
+    example: ['web', 'mobile'],
+  })
   @IsArray()
   @IsOptional()
   preferredProjectTypes?: string[];
 }
 
 export class PortfolioLinkDto {
-  @ApiPropertyOptional({ description: 'Label for custom link', example: 'Instagram' })
+  @ApiPropertyOptional({
+    description: 'Label for custom link',
+    example: 'Instagram',
+  })
   @IsString()
   label: string;
 
-  @ApiPropertyOptional({ description: 'URL of custom link', example: 'https://instagram.com/user' })
+  @ApiPropertyOptional({
+    description: 'URL of custom link',
+    example: 'https://instagram.com/user',
+  })
   @IsString()
   url: string;
 
-  @ApiPropertyOptional({ description: 'Description of link usage', example: 'Portfolio showcase' })
+  @ApiPropertyOptional({
+    description: 'Description of link usage',
+    example: 'Portfolio showcase',
+  })
   @IsString()
   @IsOptional()
   description?: string | null;
 }
 
 export class PortfolioLinksDto {
-  @ApiPropertyOptional({ description: 'GitHub profile URL', example: 'https://github.com/user' })
+  @ApiPropertyOptional({
+    description: 'GitHub profile URL',
+    example: 'https://github.com/user',
+  })
   @IsString()
   @IsOptional()
   github?: string;
 
-  @ApiPropertyOptional({ description: 'LinkedIn profile URL', example: 'https://linkedin.com/in/user' })
+  @ApiPropertyOptional({
+    description: 'LinkedIn profile URL',
+    example: 'https://linkedin.com/in/user',
+  })
   @IsString()
   @IsOptional()
   linkedin?: string;
 
-  @ApiPropertyOptional({ description: 'Personal website URL', example: 'https://userwebsite.com' })
+  @ApiPropertyOptional({
+    description: 'Personal website URL',
+    example: 'https://userwebsite.com',
+  })
   @IsString()
   @IsOptional()
   website?: string;
 
-  @ApiPropertyOptional({ description: 'X (Twitter) profile URL', example: 'https://twitter.com/user' })
+  @ApiPropertyOptional({
+    description: 'X (Twitter) profile URL',
+    example: 'https://twitter.com/user',
+  })
   @IsString()
   @IsOptional()
   x?: string;
 
-  @ApiPropertyOptional({ type: [PortfolioLinkDto], description: 'Custom social or professional links' })
+  @ApiPropertyOptional({
+    type: [PortfolioLinkDto],
+    description: 'Custom social or professional links',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PortfolioLinkDto)
@@ -79,11 +118,17 @@ export class PortfolioLinksDto {
 }
 
 export class CertificationDto {
-  @ApiPropertyOptional({ description: 'Certification name', example: 'AWS Certified Solutions Architect' })
+  @ApiPropertyOptional({
+    description: 'Certification name',
+    example: 'AWS Certified Solutions Architect',
+  })
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Issuing organization', example: 'Amazon' })
+  @ApiPropertyOptional({
+    description: 'Issuing organization',
+    example: 'Amazon',
+  })
   @IsString()
   issuer: string;
 
@@ -103,7 +148,10 @@ export class CertificationDto {
 }
 
 export class EducationDto {
-  @ApiPropertyOptional({ description: 'Degree', example: "Bachelor's in Computer Science" })
+  @ApiPropertyOptional({
+    description: 'Degree',
+    example: "Bachelor's in Computer Science",
+  })
   @IsString()
   @IsOptional()
   degree?: string;
@@ -118,7 +166,10 @@ export class EducationDto {
   @IsOptional()
   graduationYear?: number;
 
-  @ApiPropertyOptional({ type: [CertificationDto], description: 'Professional certifications' })
+  @ApiPropertyOptional({
+    type: [CertificationDto],
+    description: 'Professional certifications',
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CertificationDto)
@@ -127,12 +178,18 @@ export class EducationDto {
 }
 
 export class WorkPreferencesDto {
-  @ApiPropertyOptional({ description: 'Willing to work remotely', example: true })
+  @ApiPropertyOptional({
+    description: 'Willing to work remotely',
+    example: true,
+  })
   @IsBoolean()
   @IsOptional()
   remoteWork?: boolean;
 
-  @ApiPropertyOptional({ description: 'Willing to work on-site', example: true })
+  @ApiPropertyOptional({
+    description: 'Willing to work on-site',
+    example: true,
+  })
   @IsBoolean()
   @IsOptional()
   onSiteWork?: boolean;
@@ -142,29 +199,44 @@ export class WorkPreferencesDto {
   @IsOptional()
   hybridWork?: boolean;
 
-  @ApiPropertyOptional({ description: 'Travel willingness', example: 'national' })
+  @ApiPropertyOptional({
+    description: 'Travel willingness',
+    example: 'national',
+  })
   @IsString()
   @IsOptional()
   travelWillingness?: string;
 
-  @ApiPropertyOptional({ description: 'Contract types', example: ['hourly', 'fixed'] })
+  @ApiPropertyOptional({
+    description: 'Contract types',
+    example: ['hourly', 'fixed'],
+  })
   @IsArray()
   @IsOptional()
   contractTypes?: string[];
 
-  @ApiPropertyOptional({ description: 'Minimum project duration', example: '1-2 weeks' })
+  @ApiPropertyOptional({
+    description: 'Minimum project duration',
+    example: '1-2 weeks',
+  })
   @IsString()
   @IsOptional()
   minProjectDuration?: string;
 
-  @ApiPropertyOptional({ description: 'Maximum project duration', example: '6+ months' })
+  @ApiPropertyOptional({
+    description: 'Maximum project duration',
+    example: '6+ months',
+  })
   @IsString()
   @IsOptional()
   maxProjectDuration?: string;
 }
 
 export class UpdateDeveloperProfileDto {
-  @ApiPropertyOptional({ description: 'Skills', example: ['JavaScript', 'React', 'Node.js'] })
+  @ApiPropertyOptional({
+    description: 'Skills',
+    example: ['JavaScript', 'React', 'Node.js'],
+  })
   @IsArray()
   @IsOptional()
   skills?: string[];
@@ -184,37 +256,73 @@ export class UpdateDeveloperProfileDto {
   @IsOptional()
   currency?: string;
 
-  @ApiPropertyOptional({ type: AvailabilityDto, description: 'Availability and work preferences' })
+  @ApiPropertyOptional({
+    type: AvailabilityDto,
+    description: 'Availability and work preferences',
+  })
   @ValidateNested()
   @Type(() => AvailabilityDto)
   @IsOptional()
   availability?: AvailabilityDto;
 
-  @ApiPropertyOptional({ type: PortfolioLinksDto, description: 'Portfolio and social links' })
+  @ApiPropertyOptional({
+    type: PortfolioLinksDto,
+    description: 'Portfolio and social links',
+  })
   @ValidateNested()
   @Type(() => PortfolioLinksDto)
   @IsOptional()
   portfolioLinks?: PortfolioLinksDto;
 
-  @ApiPropertyOptional({ type: EducationDto, description: 'Education and certifications' })
+  @ApiPropertyOptional({
+    type: EducationDto,
+    description: 'Education and certifications',
+  })
   @ValidateNested()
   @Type(() => EducationDto)
   @IsOptional()
   education?: EducationDto;
 
-  @ApiPropertyOptional({ type: WorkPreferencesDto, description: 'Work preferences' })
+  @ApiPropertyOptional({
+    type: WorkPreferencesDto,
+    description: 'Work preferences',
+  })
   @ValidateNested()
   @Type(() => WorkPreferencesDto)
   @IsOptional()
   workPreferences?: WorkPreferencesDto;
 }
 export class AddSkillDto {
-  @ApiPropertyOptional({ description: 'Single skill to add', example: 'TypeScript' })
+  @ApiPropertyOptional({
+    description: 'Single skill to add',
+    example: 'TypeScript',
+  })
   @IsString()
   @IsNotEmpty()
   skill: string;
-
 }
+
+export class UpdateSkillsDto {
+  @ApiPropertyOptional({
+    description: 'Skills array to update',
+    example: ['JavaScript', 'React', 'Node.js'],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  skills: string[];
+}
+
+export class SkillSuggestionDto {
+  @ApiPropertyOptional({
+    description: 'Suggested skills',
+    example: ['TypeScript', 'Vue.js', 'MongoDB'],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  suggestions: string[];
+}
+
 export class AvailabilityResponseDto {
   @ApiPropertyOptional({ description: 'Availability settings' })
   @ValidateNested()

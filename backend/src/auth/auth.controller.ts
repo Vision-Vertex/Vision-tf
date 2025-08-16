@@ -123,15 +123,18 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 300000 } }) // 5 admin signups per 5 minutes
   @ApiOperation({
     summary: 'Register a new admin user',
-    description: 'Creates a new admin account with invitation code verification. Admin users are automatically email verified.',
+    description:
+      'Creates a new admin account with invitation code verification. Admin users are automatically email verified.',
   })
   @ApiBody({ type: AdminSignupDto })
   @ApiCreatedResponse({
-    description: 'Admin registered successfully with automatic email verification',
+    description:
+      'Admin registered successfully with automatic email verification',
     type: CreatedResponse,
   })
   @ApiBadRequestResponse({
-    description: 'Invalid invitation code, no invitation sent to email, or validation error',
+    description:
+      'Invalid invitation code, no invitation sent to email, or validation error',
   })
   @ApiConflictResponse({
     description: 'Email or username already taken',
@@ -611,7 +614,8 @@ export class AuthController {
   @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Invite admin user',
-    description: 'Sends an invitation to create a new admin account. Checks if user already exists and provides appropriate error messages.',
+    description:
+      'Sends an invitation to create a new admin account. Checks if user already exists and provides appropriate error messages.',
   })
   @ApiBody({ type: InviteAdminDto })
   @ApiOkResponse({
@@ -622,7 +626,8 @@ export class AuthController {
     description: 'Invalid email or user already exists',
   })
   @ApiConflictResponse({
-    description: 'User already exists, has signed up using invitation, or active invitation exists',
+    description:
+      'User already exists, has signed up using invitation, or active invitation exists',
   })
   @ApiUnauthorizedResponse({
     description: 'Unauthorized - JWT token required',
@@ -647,19 +652,34 @@ export class AuthController {
   @Version('1')
   @ApiBearerAuth('JWT-auth')
   @ApiTags('Admin Operations')
-  @ApiOperation({ 
-    summary: 'Resend admin invitation', 
-    description: 'Resends an invitation with a new code. Only works if invitation was previously sent.' 
+  @ApiOperation({
+    summary: 'Resend admin invitation',
+    description:
+      'Resends an invitation with a new code. Only works if invitation was previously sent.',
   })
   @ApiParam({ name: 'invitationId', description: 'Invitation ID to resend' })
-  @ApiOkResponse({ description: 'Admin invitation resent successfully', type: SuccessResponse })
-  @ApiBadRequestResponse({ description: 'Invitation not found, expired, already used, or user already signed up' })
+  @ApiOkResponse({
+    description: 'Admin invitation resent successfully',
+    type: SuccessResponse,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Invitation not found, expired, already used, or user already signed up',
+  })
   @ApiUnauthorizedResponse({ description: 'Unauthorized - JWT token required' })
   @ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
-  resendInvitation(@Req() req: any, @Param('invitationId') invitationId: string) {
+  resendInvitation(
+    @Req() req: any,
+    @Param('invitationId') invitationId: string,
+  ) {
     const userAgent = req.headers['user-agent'] || 'Unknown';
     const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown';
-    return this.authService.resendInvitation(invitationId, req.user.userId, ipAddress, userAgent);
+    return this.authService.resendInvitation(
+      invitationId,
+      req.user.userId,
+      ipAddress,
+      userAgent,
+    );
   }
 
   @UseGuards(AuthGuardWithRoles)
@@ -668,19 +688,33 @@ export class AuthController {
   @Version('1')
   @ApiBearerAuth('JWT-auth')
   @ApiTags('Admin Operations')
-  @ApiOperation({ 
-    summary: 'Delete admin invitation', 
-    description: 'Deletes an invitation. Cannot delete invitations that have already been used.' 
+  @ApiOperation({
+    summary: 'Delete admin invitation',
+    description:
+      'Deletes an invitation. Cannot delete invitations that have already been used.',
   })
   @ApiParam({ name: 'invitationId', description: 'Invitation ID to delete' })
-  @ApiOkResponse({ description: 'Admin invitation deleted successfully', type: SuccessResponse })
-  @ApiBadRequestResponse({ description: 'Invitation not found or already used' })
+  @ApiOkResponse({
+    description: 'Admin invitation deleted successfully',
+    type: SuccessResponse,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invitation not found or already used',
+  })
   @ApiUnauthorizedResponse({ description: 'Unauthorized - JWT token required' })
   @ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
-  deleteInvitation(@Req() req: any, @Param('invitationId') invitationId: string) {
+  deleteInvitation(
+    @Req() req: any,
+    @Param('invitationId') invitationId: string,
+  ) {
     const userAgent = req.headers['user-agent'] || 'Unknown';
     const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown';
-    return this.authService.deleteInvitation(invitationId, req.user.userId, ipAddress, userAgent);
+    return this.authService.deleteInvitation(
+      invitationId,
+      req.user.userId,
+      ipAddress,
+      userAgent,
+    );
   }
 
   @UseGuards(AuthGuardWithRoles)
@@ -689,11 +723,14 @@ export class AuthController {
   @Version('1')
   @ApiBearerAuth('JWT-auth')
   @ApiTags('Admin Operations')
-  @ApiOperation({ 
-    summary: 'Get admin invitations', 
-    description: 'Retrieves all invitations created by the current admin.' 
+  @ApiOperation({
+    summary: 'Get admin invitations',
+    description: 'Retrieves all invitations created by the current admin.',
   })
-  @ApiOkResponse({ description: 'Invitations retrieved successfully', type: SuccessResponse })
+  @ApiOkResponse({
+    description: 'Invitations retrieved successfully',
+    type: SuccessResponse,
+  })
   @ApiUnauthorizedResponse({ description: 'Unauthorized - JWT token required' })
   @ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
   getInvitations(@Req() req: any) {

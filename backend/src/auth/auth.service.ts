@@ -33,9 +33,9 @@ import {
   LoginContext,
 } from '../security/suspicious-activity.service';
 import { SuspiciousActivityStatus } from '@prisma/client';
-import { 
-  SuccessResponse, 
-  CreatedResponse, 
+import {
+  SuccessResponse,
+  CreatedResponse,
 } from '../common/dto/api-response.dto';
 
 @Injectable()
@@ -72,12 +72,12 @@ export class AuthService {
     // Create user and profile in a transaction
     const result = await this.prisma.$transaction(async (prisma) => {
       const user = await prisma.user.create({
-      data: {
-        ...dto,
-        password: hashedPassword,
-        emailVerificationToken,
-        emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-      },
+        data: {
+          ...dto,
+          password: hashedPassword,
+          emailVerificationToken,
+          emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        },
       });
 
       // Create profile with role-specific defaults
@@ -543,7 +543,7 @@ export class AuthService {
       // Increment failed login attempts
       const failedAttempts = user.failedLoginAttempts + 1;
       const updateData: any = { failedLoginAttempts: failedAttempts };
-      
+
       // Lock account after 5 failed attempts for 15 minutes
       if (failedAttempts >= 5) {
         updateData.accountLockedUntil = new Date(Date.now() + 15 * 60 * 1000);
@@ -594,9 +594,9 @@ export class AuthService {
 
     // Create session
     const session = await this.sessionService.createSession(
-      user.id, 
-      userAgent, 
-      ipAddress, 
+      user.id,
+      userAgent,
+      ipAddress,
       dto.rememberMe || false,
     );
 
@@ -686,7 +686,7 @@ export class AuthService {
         );
         throw new UnauthorizedException('Invalid 2FA code');
       }
-      
+
       // Update backup codes after use
       await this.prisma.user.update({
         where: { id: user.id },
@@ -883,10 +883,10 @@ export class AuthService {
     return new SuccessResponse(
       '2FA setup initiated. Check your email for details.',
       {
-      secret,
-      qrCodeUrl,
-      qrCode,
-      backupCodes,
+        secret,
+        qrCodeUrl,
+        qrCode,
+        backupCodes,
         instructions:
           'Scan the QR code with your authenticator app or enter the secret manually.',
       },
@@ -1082,7 +1082,7 @@ export class AuthService {
     });
 
     return new SuccessResponse('Authentication successful', {
-      accessToken, 
+      accessToken,
       refreshToken,
       sessionToken, // Include session token for client-side session management
     });
@@ -1286,7 +1286,7 @@ export class AuthService {
       limit = 50,
       offset = 0,
     } = query;
-    
+
     const where: any = {};
     if (eventType) where.eventType = eventType;
     if (eventCategory) where.eventCategory = eventCategory;
@@ -1356,11 +1356,11 @@ export class AuthService {
   ) {
     const result =
       await this.suspiciousActivityService.updateSuspiciousActivityStatus(
-      activityId,
-      status,
-      adminUserId,
-      reviewNotes,
-    );
+        activityId,
+        status,
+        adminUserId,
+        reviewNotes,
+      );
     return new SuccessResponse(
       'Suspicious activity status updated successfully',
       result,

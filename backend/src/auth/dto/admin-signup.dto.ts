@@ -85,7 +85,8 @@ export class AdminSignupDto {
     description: 'User password (must meet strength requirements)',
     example: 'SecurePass123!',
     minLength: 8,
-    pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$',
+    pattern:
+      '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$',
   })
   @IsString({ message: 'Password must be a string' })
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
@@ -134,14 +135,17 @@ export class AdminSignupDto {
   })
   @IsOptional()
   @IsString({ message: 'Timezone must be a string' })
-  @IsIn([
-    'UTC',
-    'America/New_York',
-    'Europe/London',
-    'Asia/Tokyo',
-    'Australia/Sydney',
-  ], {
-    message: 'Please select a valid timezone',
-  })
+  @IsIn(
+    [
+      'UTC',
+      'America/New_York',
+      'Europe/London',
+      'Asia/Tokyo',
+      'Australia/Sydney',
+    ],
+    {
+      message: 'Please select a valid timezone',
+    },
+  )
   timezone?: string;
 }

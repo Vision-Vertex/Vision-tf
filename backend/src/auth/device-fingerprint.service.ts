@@ -25,7 +25,7 @@ export class DeviceFingerprintService {
    */
   createFingerprint(data: DeviceFingerprintData): string {
     const deviceInfo = this.parseDeviceInfo(data.userAgent);
-    
+
     // Create fingerprint components
     const components = [
       data.ipAddress,
@@ -53,11 +53,11 @@ export class DeviceFingerprintService {
    */
   parseDeviceInfo(userAgent: string): DeviceInfo {
     const ua = userAgent.toLowerCase();
-    
+
     // Detect browser
     let browser = 'Unknown';
     let browserVersion = '';
-    
+
     if (ua.includes('chrome')) {
       browser = 'Chrome';
       browserVersion = this.extractVersion(ua, 'chrome/');
@@ -78,7 +78,7 @@ export class DeviceFingerprintService {
     // Detect OS
     let os = 'Unknown';
     let osVersion = '';
-    
+
     if (ua.includes('windows')) {
       os = 'Windows';
       osVersion = this.extractWindowsVersion(ua);
@@ -122,31 +122,32 @@ export class DeviceFingerprintService {
    */
   detectIncognito(userAgent: string): boolean {
     const ua = userAgent.toLowerCase();
-    
+
     // Chrome incognito detection patterns
-    if (ua.includes('chrome') && (
-      ua.includes('incognito') ||
-      ua.includes('private') ||
-      ua.includes('headless')
-    )) {
+    if (
+      ua.includes('chrome') &&
+      (ua.includes('incognito') ||
+        ua.includes('private') ||
+        ua.includes('headless'))
+    ) {
       return true;
     }
-    
+
     // Firefox private browsing detection
     if (ua.includes('firefox') && ua.includes('private')) {
       return true;
     }
-    
+
     // Safari private browsing detection
     if (ua.includes('safari') && ua.includes('private')) {
       return true;
     }
-    
+
     // Edge InPrivate detection
     if (ua.includes('edge') && ua.includes('inprivate')) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -156,13 +157,12 @@ export class DeviceFingerprintService {
   private extractVersion(userAgent: string, prefix: string): string {
     const index = userAgent.indexOf(prefix);
     if (index === -1) return '';
-    
+
     const start = index + prefix.length;
     const end = userAgent.indexOf(' ', start);
-    const version = end === -1 
-      ? userAgent.substring(start)
-      : userAgent.substring(start, end);
-    
+    const version =
+      end === -1 ? userAgent.substring(start) : userAgent.substring(start, end);
+
     return version.split('.')[0] || ''; // Return major version only
   }
 
@@ -185,16 +185,12 @@ export class DeviceFingerprintService {
    * Creates a human-readable device name
    */
   createDeviceName(deviceInfo: DeviceInfo): string {
-    const parts = [
-      deviceInfo.browser,
-      deviceInfo.os,
-      deviceInfo.device,
-    ];
-    
+    const parts = [deviceInfo.browser, deviceInfo.os, deviceInfo.device];
+
     if (deviceInfo.isIncognito) {
       parts.push('(Incognito)');
     }
-    
+
     return parts.filter(Boolean).join(' - ');
   }
 }

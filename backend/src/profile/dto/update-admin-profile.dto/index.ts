@@ -1,8 +1,8 @@
-export { 
+export {
   UpdateAdminProfileDto,
   AdminProfileDto,
   ProfileFiltersDto,
   ProfileStatisticsDto,
   NotificationSettingsDto,
-  AdminPreferencesDto
+  AdminPreferencesDto,
 } from './update-admin-profile.dto';

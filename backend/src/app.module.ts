@@ -42,7 +42,7 @@ import { AdminMgmtModule } from './profile/admin-mgmt/admin-mgmt.module';
     ProfileModule,
     SkillsProfileModule,
     AvailabilityProfileModule,
-    AdminMgmtModule
+    AdminMgmtModule,
   ],
   controllers: [AppController, PortfolioController],
   providers: [AppService, PortfolioService],

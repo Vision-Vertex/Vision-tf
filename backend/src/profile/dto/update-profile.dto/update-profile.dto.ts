@@ -7,17 +7,26 @@ export class UpdateProfileDto {
   @IsString()
   displayName?: string;
 
-  @ApiPropertyOptional({ description: 'User biography', example: 'Software engineer at XYZ' })
+  @ApiPropertyOptional({
+    description: 'User biography',
+    example: 'Software engineer at XYZ',
+  })
   @IsOptional()
   @IsString()
   bio?: string;
 
-  @ApiPropertyOptional({ description: 'Profile picture URL', example: 'https://example.com/avatar.jpg' })
+  @ApiPropertyOptional({
+    description: 'Profile picture URL',
+    example: 'https://example.com/avatar.jpg',
+  })
   @IsOptional()
   @IsString()
   profilePictureUrl?: string;
 
-  @ApiPropertyOptional({ description: 'Last chat read timestamp', example: '2025-08-11T10:30:00Z' })
+  @ApiPropertyOptional({
+    description: 'Last chat read timestamp',
+    example: '2025-08-11T10:30:00Z',
+  })
   @IsOptional()
   @IsDateString()
   chatLastReadAt?: string;
