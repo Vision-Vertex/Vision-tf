@@ -8,7 +8,6 @@ import {
   ApiForbiddenResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
-  ApiVersion,
 } from '@nestjs/swagger';
 import { AuthGuardWithRoles } from '../../auth/guards/auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -22,7 +21,7 @@ import { ProfileService } from '../profile.service';
 import { RateLimitGuard } from '../guards/rate-limit.guard';
 
 @ApiTags('User Management - V1')
-@ApiVersion('1')
+
 @Controller({ path: 'profile', version: '1' })
 export class ProfileV1Controller {
   constructor(private readonly profileService: ProfileService) {}

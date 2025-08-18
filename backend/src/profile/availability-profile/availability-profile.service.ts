@@ -114,7 +114,7 @@ export class AvailabilityProfileService {
     try {
       const result = await this.prisma.profile.update({
         where: { userId },
-        data: { availability: dto },
+        data: { availability: JSON.parse(JSON.stringify(dto)) },
         select: { availability: true },
       });
 
@@ -138,7 +138,7 @@ export class AvailabilityProfileService {
     try {
       const result = await this.prisma.profile.update({
         where: { userId },
-        data: { workPreferences: dto },
+        data: { workPreferences: JSON.parse(JSON.stringify(dto)) },
         select: { workPreferences: true },
       });
 

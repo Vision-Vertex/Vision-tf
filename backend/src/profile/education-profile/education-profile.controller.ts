@@ -31,7 +31,7 @@ import {
   ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { createReadStream } from 'fs';
 import { AuthGuardWithRoles } from '../../auth/guards/auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
@@ -158,7 +158,7 @@ export class EducationProfileController {
         fileIsRequired: false,
       }),
     )
-    file?: Express.Multer.File,
+    file?: any,
   ) {
     return this.educationProfileService.addCertification(
       req.user.userId,

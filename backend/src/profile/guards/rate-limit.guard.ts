@@ -44,26 +44,24 @@ export class RateLimitGuard extends ThrottlerGuard {
     return { ttl: 60000, limit: 30 }; // 30 requests per minute for read operations
   }
 
-  protected async handleRequest(
-    context: ExecutionContext,
-    limit: number,
-    ttl: number,
-  ): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+  protected async handleRequest(request: any): Promise<boolean> {
     const user = request.user;
 
     // Use user ID as the key for rate limiting
     const key = user?.userId || request.ip;
 
+    // Get throttle options for this request
+    const options = this.getThrottleOptions({ switchToHttp: () => ({ getRequest: () => request }) } as any);
+
     // Check if user has exceeded the rate limit
-    const { success } = await this.throttlerService.check(key, limit, ttl);
+    const { success } = await (this as any).throttlerService.check(key, options.limit, options.ttl);
 
     if (!success) {
-      const response = context.switchToHttp().getResponse();
+      const response = request.res;
       response.status(429).json({
         statusCode: 429,
         message: `Rate limit exceeded. Please wait before making another request.`,
-        retryAfter: Math.ceil(ttl / 1000),
+        retryAfter: Math.ceil(options.ttl / 1000),
       });
       return false;
     }

@@ -571,14 +571,14 @@ export class ProfileCompletionService {
     errorMessage?: string;
   } {
     // String length validation
-    if (rules.minLength && value.length < rules.minLength) {
+    if (rules.minLength && typeof rules.minLength === 'number' && value.length < rules.minLength) {
       return {
         isValid: false,
         errorMessage: `Minimum length is ${rules.minLength} characters`,
       };
     }
 
-    if (rules.maxLength && value.length > rules.maxLength) {
+    if (rules.maxLength && typeof rules.maxLength === 'number' && value.length > rules.maxLength) {
       return {
         isValid: false,
         errorMessage: `Maximum length is ${rules.maxLength} characters`,
@@ -588,7 +588,7 @@ export class ProfileCompletionService {
     // Number validation
     if (rules.min !== undefined && !isNaN(Number(value))) {
       const numValue = Number(value);
-      if (numValue < rules.min) {
+      if (rules.min !== null && rules.min !== undefined && typeof rules.min === 'number' && numValue < rules.min) {
         return {
           isValid: false,
           errorMessage: `Minimum value is ${rules.min}`,
@@ -598,7 +598,7 @@ export class ProfileCompletionService {
 
     if (rules.max !== undefined && !isNaN(Number(value))) {
       const numValue = Number(value);
-      if (numValue > rules.max) {
+      if (rules.max !== null && rules.max !== undefined && typeof rules.max === 'number' && numValue > rules.max) {
         return {
           isValid: false,
           errorMessage: `Maximum value is ${rules.max}`,

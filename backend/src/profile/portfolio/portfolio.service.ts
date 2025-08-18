@@ -136,7 +136,7 @@ export class PortfolioService {
       // Single database operation
       const result = await this.prisma.profile.update({
         where: { userId },
-        data: { portfolioLinks: updatedLinks },
+        data: { portfolioLinks: JSON.parse(JSON.stringify(updatedLinks)) },
         select: { portfolioLinks: true },
       });
 
@@ -210,7 +210,7 @@ export class PortfolioService {
       // Single database operation
       const result = await this.prisma.profile.update({
         where: { userId },
-        data: { portfolioLinks },
+        data: { portfolioLinks: JSON.parse(JSON.stringify(portfolioLinks)) },
         select: { portfolioLinks: true },
       });
 
@@ -273,7 +273,7 @@ export class PortfolioService {
       // Single database operation
       const result = await this.prisma.profile.update({
         where: { userId },
-        data: { portfolioLinks: updatedLinks },
+        data: { portfolioLinks: JSON.parse(JSON.stringify(updatedLinks)) },
         select: { portfolioLinks: true },
       });
 

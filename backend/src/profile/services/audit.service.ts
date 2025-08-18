@@ -3,12 +3,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 export interface AuditLogData {
   userId: string;
-  action: string;
-  resource: string;
-  resourceId: string;
-  changes?: any;
+  eventType: string;
+  eventCategory: string;
+  description: string;
+  details?: any;
   metadata?: any;
   performedBy?: string;
+  targetUserId?: string;
+  targetResource?: string;
+  targetResourceId?: string;
 }
 
 @Injectable()
@@ -19,14 +22,14 @@ export class AuditService {
     try {
       await this.prisma.auditLog.create({
         data: {
-          userId: data.userId,
-          action: data.action,
-          resource: data.resource,
-          resourceId: data.resourceId,
-          changes: data.changes ? JSON.stringify(data.changes) : null,
-          metadata: data.metadata ? JSON.stringify(data.metadata) : null,
-          performedBy: data.performedBy || data.userId,
-          timestamp: new Date(),
+          userId: data.performedBy || data.userId,
+          eventType: data.eventType as any,
+          eventCategory: data.eventCategory as any,
+          description: data.description,
+          details: data.details ? JSON.stringify(data.details) : undefined,
+          targetUserId: data.targetUserId,
+          targetResource: data.targetResource,
+          targetResourceId: data.targetResourceId,
         },
       });
     } catch (error) {
@@ -43,16 +46,19 @@ export class AuditService {
   ): Promise<void> {
     await this.logProfileChange({
       userId: targetUserId,
-      action: 'PROFILE_UPDATE_BY_ADMIN',
-      resource: 'profile',
-      resourceId: targetUserId,
-      changes,
-      metadata: {
+      eventType: 'PROFILE_UPDATE',
+      eventCategory: 'ADMIN_ACTION',
+      description: 'Profile updated by admin',
+      details: {
+        changes,
         ...metadata,
         adminUserId,
         operation: 'admin_update',
       },
       performedBy: adminUserId,
+      targetUserId,
+      targetResource: 'profile',
+      targetResourceId: targetUserId,
     });
   }
 
@@ -63,33 +69,38 @@ export class AuditService {
   ): Promise<void> {
     await this.logProfileChange({
       userId,
-      action: 'PROFILE_UPDATE',
-      resource: 'profile',
-      resourceId: userId,
-      changes,
-      metadata: {
+      eventType: 'PROFILE_UPDATE',
+      eventCategory: 'USER_ACTION',
+      description: 'Profile updated by user',
+      details: {
+        changes,
         ...metadata,
         operation: 'self_update',
       },
+      performedBy: userId,
+      targetUserId: userId,
+      targetResource: 'profile',
+      targetResourceId: userId,
     });
   }
 
   async logProfileView(
     userId: string,
-    viewedBy: string,
     metadata?: any,
   ): Promise<void> {
     await this.logProfileChange({
       userId,
-      action: 'PROFILE_VIEW',
-      resource: 'profile',
-      resourceId: userId,
-      metadata: {
+      eventType: 'PROFILE_VIEW',
+      eventCategory: 'USER_ACTION',
+      description: 'Profile viewed',
+      details: {
         ...metadata,
-        viewedBy,
         operation: 'profile_view',
       },
-      performedBy: viewedBy,
+      performedBy: userId,
+      targetUserId: userId,
+      targetResource: 'profile',
+      targetResourceId: userId,
     });
   }
 
@@ -106,12 +117,12 @@ export class AuditService {
     }
 
     if (action) {
-      where.action = action;
+      where.eventType = action;
     }
 
     return this.prisma.auditLog.findMany({
       where,
-      orderBy: { timestamp: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: limit,
       skip: offset,
     });

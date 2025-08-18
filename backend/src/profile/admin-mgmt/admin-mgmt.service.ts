@@ -352,7 +352,7 @@ export class AdminMgmtService {
 
       // Performance monitoring and audit logging
       const queryDuration = Date.now() - queryStartTime;
-      await this.auditService.logProfileView('admin', {
+      await this.auditService.logProfileView(adminUserId || 'unknown', {
         operation: 'admin_get_all_profiles',
         filters: Object.keys(filters),
         resultCount: transformedProfiles.length,
@@ -493,10 +493,10 @@ export class AdminMgmtService {
       };
 
       // Audit logging
-      await this.auditService.logProfileView('admin', {
+      await this.auditService.logProfileView(adminUserId || 'unknown', {
         operation: 'admin_get_profile_by_user_id',
         targetUserId: userId,
-        profileRole: profile.user.role,
+        profileRole: profile?.user?.role,
       });
     } catch (error) {
       if (
@@ -545,7 +545,7 @@ export class AdminMgmtService {
       }));
 
       // Audit logging
-      await this.auditService.logProfileView('admin', {
+      await this.auditService.logProfileView(adminUserId || 'unknown', {
         operation: 'admin_get_profile_statistics',
         resultCount: totalProfiles,
       });
@@ -591,7 +591,7 @@ export class AdminMgmtService {
       });
 
       // Audit logging
-      await this.auditService.logProfileView('admin', {
+      await this.auditService.logProfileView(adminUserId || 'unknown', {
         operation: 'admin_get_profile_analytics',
         resultCount: totalUsers,
       });
@@ -678,10 +678,10 @@ export class AdminMgmtService {
       const completion = this.completionService.calculateCompletion(profile);
 
       // Audit logging
-      await this.auditService.logProfileView('admin', {
+      await this.auditService.logProfileView(adminUserId || 'unknown', {
         operation: 'admin_get_profile_completion',
         targetUserId: userId,
-        profileRole: profile.user.role,
+        profileRole: profile?.user?.role,
       });
 
       return {
@@ -740,7 +740,7 @@ export class AdminMgmtService {
       const stats = this.completionService.getCompletionStats(profiles);
 
       // Audit logging
-      await this.auditService.logProfileView('admin', {
+      await this.auditService.logProfileView(adminUserId || 'unknown', {
         operation: 'admin_get_completion_stats',
         resultCount: profiles.length,
       });
@@ -842,23 +842,23 @@ export class AdminMgmtService {
         profileUpdates.platformSettings = dto.platformSettings;
 
       // Perform updates in transaction
-      const [updatedUser, updatedProfile] = await this.prisma.$transaction([
-        // Update user if needed
-        Object.keys(userUpdates).length > 0
-          ? this.prisma.user.update({
+      const [updatedUser, updatedProfile] = await this.prisma.$transaction(async (prisma) => {
+        const userResult = Object.keys(userUpdates).length > 0
+          ? await prisma.user.update({
               where: { id: userId },
               data: userUpdates,
             })
-          : Promise.resolve(user),
+          : user;
 
-        // Update profile if needed
-        Object.keys(profileUpdates).length > 0
-          ? this.prisma.profile.update({
+        const profileResult = Object.keys(profileUpdates).length > 0
+          ? await prisma.profile.update({
               where: { userId },
               data: profileUpdates,
             })
-          : Promise.resolve(existingProfile),
-      ]);
+          : existingProfile;
+
+        return [userResult, profileResult];
+      });
 
       // Get updated fields for audit
       const updatedFields = [
@@ -884,7 +884,7 @@ export class AdminMgmtService {
         message: 'Profile updated successfully by admin',
         profile: {
           userId: updatedProfile.userId,
-          systemRole: updatedProfile.systemRole,
+          systemRole: updatedProfile.systemRole || undefined,
           status: dto.status || 'active',
           updatedAt: updatedProfile.updatedAt.toISOString(),
         },

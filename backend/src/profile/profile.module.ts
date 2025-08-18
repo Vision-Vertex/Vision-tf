@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ProfileController } from './profile.controller';
 import { ProfileV1Controller } from './controllers/profile-v1.controller';
@@ -16,19 +16,19 @@ import { SearchProfileModule } from './search-profile/search-profile.module';
 import { ProfileCompletionService } from './services/profile-completion.service';
 
 @Module({
-  imports: [
-    PrismaModule,
-    AuthModule,
-    AvailabilityProfileModule,
-    AdminMgmtModule,
-    SearchProfileModule,
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 30,
-      },
-    ]),
-  ],
+      imports: [
+      PrismaModule,
+      AuthModule,
+      AvailabilityProfileModule,
+      forwardRef(() => AdminMgmtModule),
+      forwardRef(() => SearchProfileModule),
+      ThrottlerModule.forRoot([
+        {
+          ttl: 60000,
+          limit: 30,
+        },
+      ]),
+    ],
   controllers: [
     ProfileController,
     ProfileV1Controller,

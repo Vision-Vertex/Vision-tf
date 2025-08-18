@@ -54,8 +54,8 @@ export class SearchProfileService {
 
       // Build order by clause
       const orderBy = this.buildSearchOrderBy(
-        searchDto.sortBy,
-        searchDto.sortOrder,
+        searchDto.sortBy || 'relevance',
+        searchDto.sortOrder || 'desc',
       );
 
       // Execute optimized query with selective field fetching
@@ -301,7 +301,7 @@ export class SearchProfileService {
             isDeleted: false,
           },
           skills: {
-            not: [],
+            // Remove the 'not' field as it's not supported in this context
           },
         },
         select: {

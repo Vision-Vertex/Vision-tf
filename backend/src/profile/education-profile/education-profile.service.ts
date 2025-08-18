@@ -67,7 +67,7 @@ export class EducationProfileService {
         .update({
           where: { userId },
           data: {
-            education: educationData,
+            education: JSON.parse(JSON.stringify(educationData)),
           },
           select: { education: true },
         })
@@ -104,7 +104,7 @@ export class EducationProfileService {
   async addCertification(
     userId: string,
     certificationData: CertificationDto,
-    file?: Express.Multer.File,
+    file?: any,
   ): Promise<SuccessResponse> {
     this.validateCertificationData(certificationData);
 
@@ -160,10 +160,10 @@ export class EducationProfileService {
         const updatedProfile = await tx.profile.update({
           where: { userId },
           data: {
-            education: {
+            education: JSON.parse(JSON.stringify({
               ...currentEducation,
               certifications,
-            },
+            })),
           },
         });
 
@@ -244,10 +244,10 @@ export class EducationProfileService {
         const updatedProfile = await tx.profile.update({
           where: { userId },
           data: {
-            education: {
+            education: JSON.parse(JSON.stringify({
               ...currentEducation,
               certifications,
-            },
+            })),
           },
         });
 
@@ -385,7 +385,7 @@ export class EducationProfileService {
    * Handle file upload with validation
    */
   private async handleFileUpload(
-    file: Express.Multer.File,
+    file: any,
     userId: string,
     certificationId: string,
   ): Promise<{ fileUrl: string; fileName: string; fileSize: number }> {
@@ -426,7 +426,7 @@ export class EducationProfileService {
   /**
    * Validate file upload
    */
-  private validateFile(file: Express.Multer.File): void {
+  private validateFile(file: any): void {
     if (!file) {
       throw new BadRequestException('No file provided');
     }

@@ -194,7 +194,11 @@ export class CloudStorageService {
         path.basename(cloudFileUrl),
       );
       this.ensureDirectory(path.dirname(localPath));
-      fs.writeFileSync(localPath, downloadResult.stream);
+      if (downloadResult.stream) {
+        if (downloadResult.stream && typeof downloadResult.stream === 'string') {
+          fs.writeFileSync(localPath, downloadResult.stream);
+        }
+      }
 
       // Delete from cloud after successful download
       await this.deleteFromCloud(cloudFileUrl);
