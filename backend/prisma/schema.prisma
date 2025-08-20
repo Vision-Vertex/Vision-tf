@@ -48,6 +48,8 @@ model User {
   clientJobs               Job[]                @relation("ClientJobs")
   jobEvents                JobEvent[]           @relation("UserJobEvents")
   jobStatusChanges         JobStatusHistory[]   @relation("UserJobStatusChanges")
+  developerAssignments JobAssignment[] @relation("DeveloperAssignments")
+  assignerAssignments  JobAssignment[] @relation("AssignerAssignments")
 }
 
 
@@ -289,7 +291,7 @@ model Job {
   auditLogs         AuditLog[]
   jobEvents         JobEvent[]
   jobHistory        JobStatusHistory[]
-  
+  assignments     JobAssignment[]
   @@index([clientId])
   @@index([status])
   @@index([priority])
@@ -510,4 +512,30 @@ enum JobEventType {
   JOB_VIEWED
   JOB_SHARED
   JOB_BOOKMARKED
+}
+model JobAssignment {
+  id              String   @id @default(uuid())
+  jobId           String   
+  developerId     String   
+  assignedBy      String   
+  assignmentType  String   
+  assignedAt      DateTime @default(now())
+  status          AssignmentStatus @default(PENDING)
+  notes           String?
+
+  // Relations
+  job             Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  developer       User     @relation("DeveloperAssignments", fields: [developerId], references: [id], onDelete: Cascade)
+  assignedByUser  User     @relation("AssignerAssignments", fields: [assignedBy], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
 }
