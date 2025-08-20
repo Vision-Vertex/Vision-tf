@@ -51,7 +51,7 @@ model User {
   developerAssignments JobAssignment[] @relation("DeveloperAssignments")
   assignerAssignments  JobAssignment[] @relation("AssignerAssignments")
   teamMemberships   TeamMember[]      
-  teamAssignments   TeamAssignment[]   
+  teamAssignments   TeamAssignment[]
 }
 
 
