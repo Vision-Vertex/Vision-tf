@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
+import { NotFoundException } from '@nestjs/common';
 
 export interface CompletionBreakdown {
   overall: number;
@@ -44,6 +46,8 @@ export interface RequiredField {
 
 @Injectable()
 export class ProfileCompletionService {
+  constructor(private readonly prisma: PrismaService) {}
+
   private readonly completionCategories: CompletionCategory[] = [
     {
       name: 'basic',
@@ -679,6 +683,32 @@ export class ProfileCompletionService {
       totalFieldsCount: requiredFields.length,
       validationPercentage: 0,
       fieldValidations,
+    };
+  }
+
+  /**
+   * Get profile completion status for a user
+   */
+  async getProfileCompletion(userId: string) {
+    const userWithProfile = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        profile: true,
+      },
+    });
+
+    if (!userWithProfile) {
+      throw new NotFoundException('User not found');
+    }
+
+    const completion = this.calculateCompletion(userWithProfile.profile);
+
+    return {
+      completion,
+      userId: userWithProfile.id,
+      lastUpdated: userWithProfile.profile?.updatedAt || new Date().toISOString(),
     };
   }
 }

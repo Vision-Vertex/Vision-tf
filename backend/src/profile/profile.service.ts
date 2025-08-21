@@ -12,6 +12,7 @@ import { UpdateDeveloperProfileDto } from './dto/update-developer-profile.dto/up
 import { SuccessResponse } from '../common/dto/api-response.dto';
 import { AuditService } from './services/audit.service';
 import { ProfileCompletionService } from './services/profile-completion.service';
+import { CloudStorageService } from './services/cloud-storage.service';
 import { UserRole } from '@prisma/client';
 import isURL from 'validator/lib/isURL';
 
@@ -21,6 +22,7 @@ export class ProfileService {
     private prisma: PrismaService,
     private auditService: AuditService,
     private profileCompletionService: ProfileCompletionService,
+    private cloudStorageService: CloudStorageService,
   ) {}
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -272,29 +274,84 @@ export class ProfileService {
    * Reuses the existing completion service logic
    */
   async getProfileCompletion(userId: string) {
-    const userWithProfile = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        role: true,
-        profile: true,
-      },
-    });
+    return this.profileCompletionService.getProfileCompletion(userId);
+  }
 
-    if (!userWithProfile) {
-      throw new NotFoundException('User not found');
+  async uploadProfilePicture(userId: string, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No image file provided');
     }
 
-    const completion = this.profileCompletionService.calculateCompletion(
-      userWithProfile.profile,
-    );
+    // Validate file type
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Invalid file type. Only JPG, PNG, and WebP images are allowed',
+      );
+    }
 
-    return {
-      completion,
-      userId: userWithProfile.id,
-      lastUpdated:
-        userWithProfile.profile?.updatedAt || new Date().toISOString(),
-    };
+    // Validate file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new BadRequestException(
+        'File size too large. Maximum size is 5MB',
+      );
+    }
+
+    try {
+      // Generate unique filename
+      const timestamp = Date.now();
+      const fileExtension = file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `profile-picture-${userId}-${timestamp}.${fileExtension}`;
+
+      // Upload to storage (local by default, cloud when configured)
+      const uploadResult = await this.cloudStorageService.uploadFile(
+        file.buffer,
+        fileName,
+        'profile-pictures',
+      );
+
+      // Update profile with new picture URL
+      const updatedProfile = await this.prisma.profile.update({
+        where: { userId },
+        data: {
+          profilePictureUrl: uploadResult.fileUrl,
+        },
+        select: {
+          profilePictureUrl: true,
+        },
+      });
+
+      // Log audit trail
+      await this.auditService.logProfileUpdate(
+        userId,
+        {
+          profilePictureUpdated: {
+            oldUrl: null, // We don't track old URL for simplicity
+            newUrl: uploadResult.fileUrl,
+            fileName: fileName,
+            fileSize: file.size,
+          },
+        },
+        {
+          operation: 'profile_picture_uploaded',
+          fieldsUpdated: ['profilePictureUrl'],
+        },
+      );
+
+      return new SuccessResponse('Profile picture uploaded successfully', {
+        profilePictureUrl: uploadResult.fileUrl,
+        fileName: fileName,
+        fileSize: file.size,
+      });
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Failed to upload profile picture',
+      );
+    }
   }
 
   /**
