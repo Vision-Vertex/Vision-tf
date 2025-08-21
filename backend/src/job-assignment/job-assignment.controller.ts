@@ -20,6 +20,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { SuccessResponse } from '../common/dto/api-response.dto';
 import { RateLimitGuard } from '../profile/guards/rate-limit.guard';
+import  { DeveloperSuggestionDto } from './dto/developer-suggestion.dto';
 
 @ApiTags('Job Management')
 @Controller({ path: 'assignments' })
@@ -94,4 +95,25 @@ export class JobAssignmentController {
   remove(@Param('id') id: string) {
     return this.assignmentsService.remove(id);
   }
+
+  @UseGuards(AuthGuardWithRoles, RateLimitGuard)
+@Roles(UserRole.ADMIN)
+@Get('suggestions/:jobId')
+@ApiBearerAuth('JWT-auth')
+@ApiOperation({ 
+  summary: 'Suggest developers for a job', 
+  description: 'Admin retrieves a list of developers whose skills match the job requirements.' 
+})
+@ApiOkResponse({ 
+  description: 'List of suggested developers returned successfully', 
+  type: [DeveloperSuggestionDto] 
+})
+@ApiBadRequestResponse({ description: 'Invalid job ID' })
+@ApiUnauthorizedResponse({ description: 'Unauthorized - JWT required' })
+@ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
+@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+suggestDevelopers(@Param('jobId') jobId: string) {
+  return this.assignmentsService.suggestDevelopers(jobId);
+}
+
 }

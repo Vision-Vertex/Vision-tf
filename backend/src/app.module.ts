@@ -45,6 +45,7 @@ import { JobAssignmentModule } from './job-assignment/job-assignment.module';
     AvailabilityProfileModule,
     AdminMgmtModule,
     JobAssignmentModule,
+
   ],
   controllers: [AppController, PortfolioController],
   providers: [AppService, PortfolioService],
