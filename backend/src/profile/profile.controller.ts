@@ -27,7 +27,7 @@ import {
   ProfileRequiredFieldsDto,
 } from './dto/profile-completion.dto/profile-completion.dto';
 
-@ApiTags('User Management')
+@ApiTags('User Profiles')
 @Controller({ path: 'profile' })
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}

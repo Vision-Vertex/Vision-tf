@@ -989,8 +989,8 @@ export class AuthService {
 
   async logout(
     userId: string,
-    refreshToken?: string,
     sessionToken: string,
+    refreshToken?: string,
     ipAddress?: string,
     userAgent?: string,
   ) {

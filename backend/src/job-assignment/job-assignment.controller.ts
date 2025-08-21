@@ -22,7 +22,7 @@ import { SuccessResponse } from '../common/dto/api-response.dto';
 import { RateLimitGuard } from '../profile/guards/rate-limit.guard';
 import  { DeveloperSuggestionDto } from './dto/developer-suggestion.dto';
 
-@ApiTags('Job Assignment Management')
+@ApiTags('Job Management')
 @Controller({ path: 'assignments' })
 export class JobAssignmentController {
   constructor(private readonly assignmentsService: JobAssignmentService) {}

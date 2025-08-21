@@ -4,16 +4,31 @@ import {
   CompletionBreakdown,
 } from './profile-completion.service';
 import { UserRole } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
 
 describe('ProfileCompletionService', () => {
   let service: ProfileCompletionService;
+  let prismaService: jest.Mocked<PrismaService>;
+
+  const mockPrismaService = {
+    user: {
+      findUnique: jest.fn(),
+    },
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ProfileCompletionService],
+      providers: [
+        ProfileCompletionService,
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+      ],
     }).compile();
 
     service = module.get<ProfileCompletionService>(ProfileCompletionService);
+    prismaService = module.get(PrismaService);
   });
 
   afterEach(() => {
