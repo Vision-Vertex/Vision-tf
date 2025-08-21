@@ -939,8 +939,8 @@ describe('AuthService', () => {
       // Act
       const result = await service.logout(
         'user-123',
-        undefined,
         'session-token-123',
+        undefined,
         '127.0.0.1',
         'user-agent',
       );
