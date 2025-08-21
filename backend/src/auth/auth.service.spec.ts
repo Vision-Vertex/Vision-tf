@@ -99,6 +99,7 @@ describe('AuthService', () => {
       session: {
         create: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         updateMany: jest.fn(),
         deleteMany: jest.fn(),
       },
@@ -170,6 +171,7 @@ describe('AuthService', () => {
       logTwoFactorSetup: jest.fn(),
       logAdminInvitationCreated: jest.fn(),
       log: jest.fn(),
+      logSessionTerminated: jest.fn(),
     };
 
     const mockSuspiciousActivityService = {
@@ -930,36 +932,38 @@ describe('AuthService', () => {
   describe('logout', () => {
     it('should logout user and revoke refresh token', async () => {
       // Arrange
-      sessionService.terminateAllUserSessions.mockResolvedValue(undefined);
+      sessionService.terminateSession.mockResolvedValue(undefined);
       auditService.logUserLogout.mockResolvedValue(undefined);
-      auditService.logAllSessionsTerminated.mockResolvedValue(undefined);
+      auditService.logSessionTerminated.mockResolvedValue(undefined);
 
       // Act
       const result = await service.logout(
         'user-123',
         undefined,
-        undefined,
+        'session-token-123',
         '127.0.0.1',
         'user-agent',
       );
 
       // Assert
-      expect(sessionService.terminateAllUserSessions).toHaveBeenCalledWith(
-        'user-123',
+      expect(sessionService.terminateSession).toHaveBeenCalledWith(
+        'session-token-123',
       );
       expect(auditService.logUserLogout).toHaveBeenCalledWith(
         'user-123',
         '127.0.0.1',
         'user-agent',
+        'session-token-123',
       );
-      expect(auditService.logAllSessionsTerminated).toHaveBeenCalledWith(
+      expect(auditService.logSessionTerminated).toHaveBeenCalledWith(
         'user-123',
+        'session-token-123',
         '127.0.0.1',
         'user-agent',
       );
       expect(result.success).toBe(true);
       expect(result.message).toContain(
-        'Logged out from all devices successfully',
+        'Logged out from this device successfully',
       );
     });
   });
@@ -1724,6 +1728,152 @@ describe('AuthService', () => {
       expect(result.data.invitations).toHaveLength(2);
       expect(result.data.invitations[0]).toHaveProperty('id', 'invitation-1');
       expect(result.data.invitations[1]).toHaveProperty('id', 'invitation-2');
+    });
+  });
+
+  describe('terminateSession', () => {
+    it('should terminate specific session with comprehensive logging', async () => {
+      // Arrange
+      const mockSession = {
+        id: 'session-123',
+        sessionToken: 'session-token-123',
+        userId: 'user-123',
+        deviceName: 'Chrome - Windows - Desktop',
+        deviceFingerprint: 'fingerprint-123',
+        isIncognito: false,
+        rememberMe: false,
+        createdAt: new Date(Date.now() - 3600000), // 1 hour ago
+        isActive: true,
+      };
+
+      prismaService.session.findFirst.mockResolvedValue(mockSession as any);
+      sessionService.terminateSession.mockResolvedValue(undefined);
+      auditService.logSessionTerminated.mockResolvedValue(undefined);
+      auditService.log.mockResolvedValue(undefined);
+
+      // Act
+      const result = await service.terminateSession(
+        'user-123',
+        'session-token-123',
+        '127.0.0.1',
+        'user-agent',
+      );
+
+      // Assert
+      expect(prismaService.session.findFirst).toHaveBeenCalledWith({
+        where: {
+          sessionToken: 'session-token-123',
+          userId: 'user-123',
+          isActive: true,
+        },
+      });
+      expect(sessionService.terminateSession).toHaveBeenCalledWith('session-token-123');
+      expect(auditService.logSessionTerminated).toHaveBeenCalledWith(
+        'user-123',
+        'session-token-123',
+        '127.0.0.1',
+        'user-agent',
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-123',
+          eventType: 'SESSION_TERMINATED',
+          eventCategory: 'SESSION',
+          description: 'Session terminated via session management endpoint',
+          sessionToken: 'session-token-123',
+          ipAddress: '127.0.0.1',
+          userAgent: 'user-agent',
+          severity: 'INFO',
+          details: expect.objectContaining({
+            sessionId: 'session-123',
+            deviceName: 'Chrome - Windows - Desktop',
+            deviceFingerprint: 'fingerprint-123',
+            isIncognito: false,
+            rememberMe: false,
+            terminationMethod: 'manual',
+          }),
+        }),
+      );
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Session terminated successfully');
+    });
+
+    it('should throw error when session not found', async () => {
+      // Arrange
+      prismaService.session.findFirst.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(
+        service.terminateSession('user-123', 'invalid-token', '127.0.0.1', 'user-agent'),
+      ).rejects.toThrow('Session not found or already terminated');
+    });
+  });
+
+  describe('terminateAllSessions', () => {
+    it('should terminate all sessions with comprehensive logging', async () => {
+      // Arrange
+      const mockSessions = [
+        {
+          id: 'session-1',
+          deviceName: 'Chrome - Windows - Desktop',
+          deviceFingerprint: 'fingerprint-1',
+          isIncognito: false,
+          rememberMe: false,
+        },
+        {
+          id: 'session-2',
+          deviceName: 'Firefox - macOS - Desktop',
+          deviceFingerprint: 'fingerprint-2',
+          isIncognito: true,
+          rememberMe: true,
+        },
+      ];
+
+      prismaService.session.findMany.mockResolvedValue(mockSessions as any);
+      sessionService.terminateAllUserSessions.mockResolvedValue(undefined);
+      auditService.logAllSessionsTerminated.mockResolvedValue(undefined);
+      auditService.log.mockResolvedValue(undefined);
+
+      // Act
+      const result = await service.terminateAllSessions(
+        'user-123',
+        '127.0.0.1',
+        'user-agent',
+      );
+
+      // Assert
+      expect(prismaService.session.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-123',
+          isActive: true,
+          expiresAt: { gt: expect.any(Date) },
+        },
+      });
+      expect(sessionService.terminateAllUserSessions).toHaveBeenCalledWith('user-123');
+      expect(auditService.logAllSessionsTerminated).toHaveBeenCalledWith(
+        'user-123',
+        '127.0.0.1',
+        'user-agent',
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-123',
+          eventType: 'ALL_SESSIONS_TERMINATED',
+          eventCategory: 'SESSION',
+          description: 'All sessions terminated via session management endpoint',
+          ipAddress: '127.0.0.1',
+          userAgent: 'user-agent',
+          severity: 'INFO',
+          details: expect.objectContaining({
+            sessionsTerminated: 2,
+            sessionIds: ['session-1', 'session-2'],
+            deviceCount: 2,
+            terminationMethod: 'bulk',
+          }),
+        }),
+      );
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('All sessions terminated successfully');
     });
   });
 });

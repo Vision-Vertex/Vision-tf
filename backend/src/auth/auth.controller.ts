@@ -438,9 +438,10 @@ export class AuthController {
         },
         sessionToken: {
           type: 'string',
-          description: 'Specific session token to terminate (optional)',
+          description: 'Session token to terminate (required)',
         },
       },
+      required: ['sessionToken'],
     },
   })
   @ApiOkResponse({
@@ -452,7 +453,7 @@ export class AuthController {
   })
   logout(
     @Req() req: any,
-    @Body() body: { refreshToken?: string; sessionToken?: string },
+    @Body() body: { refreshToken?: string; sessionToken: string },
   ) {
     const userAgent = req.headers['user-agent'] || 'Unknown';
     const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown';
@@ -504,13 +505,22 @@ export class AuthController {
     description: 'Unauthorized - JWT token required',
   })
   terminateSession(@Req() req: any, @Body() dto: TerminateSessionsDto) {
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown';
+    
     if (dto.sessionToken) {
       return this.authService.terminateSession(
         req.user.userId,
         dto.sessionToken,
+        ipAddress,
+        userAgent,
       );
     } else {
-      return this.authService.terminateAllSessions(req.user.userId);
+      return this.authService.terminateAllSessions(
+        req.user.userId,
+        ipAddress,
+        userAgent,
+      );
     }
   }
 
