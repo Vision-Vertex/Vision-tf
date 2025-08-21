@@ -43,6 +43,13 @@ model User {
   loginPatterns            UserLoginPattern[]
   invitationsCreated       Invitation[] @relation("InvitationCreator")
   invitationsUsed          Invitation[] @relation("InvitationUser")
+  
+  // Job-related relations
+  clientJobs               Job[]                @relation("ClientJobs")
+  jobEvents                JobEvent[]           @relation("UserJobEvents")
+  jobStatusChanges         JobStatusHistory[]   @relation("UserJobStatusChanges")
+  developerAssignments JobAssignment[] @relation("DeveloperAssignments")
+  assignerAssignments  JobAssignment[] @relation("AssignerAssignments")
 }
 
 
@@ -176,7 +183,9 @@ model AuditLog {
   targetUserId     String?
   targetResource   String?
   targetResourceId String?
+  jobId            String?            // Reference to Job if this audit log is job-related
   user             User?              @relation(fields: [userId], references: [id])
+  job              Job?               @relation(fields: [jobId], references: [id])
 
   @@index([userId])
   @@index([eventType])
@@ -184,6 +193,7 @@ model AuditLog {
   @@index([severity])
   @@index([createdAt])
   @@index([source])
+  @@index([jobId])
 }
 
 model SuspiciousActivity {
@@ -234,6 +244,106 @@ model UserLoginPattern {
   @@index([userId])
   @@index([ipAddress])
   @@index([isSuspicious])
+}
+
+model Job {
+  id                String           @id @default(uuid())
+  title             String
+  description       String
+  deadline          DateTime
+  clientId          String
+  status            JobStatus        @default(DRAFT)
+  
+
+  requiredSkills    Json?            
+  estimatedHours    Int?
+  priority          JobPriority      @default(MEDIUM)
+  projectType       ProjectType?
+  location          WorkLocation     @default(REMOTE)
+  attachments       String[]         @default([])
+  tags              String[]         @default([])
+  visibility        JobVisibility    @default(PUBLIC)
+  
+  // Additional fields for comprehensive management
+  requirements      String?          
+  deliverables      String[]         @default([]) 
+  constraints       String?         
+  riskFactors       String[]         @default([]) 
+  
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  publishedAt       DateTime?
+  approvedAt        DateTime?
+  onHoldAt          DateTime?
+  cancelledAt       DateTime?
+  completedAt       DateTime?
+  expiredAt         DateTime?
+  
+  // Audit and tracking
+  version           Int              @default(1)
+  lastModifiedBy    String?
+  statusChangedAt   DateTime?
+  previousStatus    JobStatus?
+  
+  // Relations
+  client            User             @relation("ClientJobs", fields: [clientId], references: [id])
+  auditLogs         AuditLog[]
+  jobEvents         JobEvent[]
+  jobHistory        JobStatusHistory[]
+  assignments     JobAssignment[]
+  @@index([clientId])
+  @@index([status])
+  @@index([priority])
+  @@index([projectType])
+  @@index([location])
+  @@index([visibility])
+  @@index([deadline])
+  @@index([createdAt])
+  @@index([publishedAt])
+  @@index([status, visibility])
+  @@index([clientId, status])
+}
+
+model JobEvent {
+  id                String           @id @default(uuid())
+  jobId             String
+  eventType         JobEventType
+  eventData         Json?
+  userId            String?
+  userAgent         String?
+  ipAddress         String?
+  timestamp         DateTime         @default(now())
+  metadata          Json?
+  
+  // Relations
+  job               Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user              User?             @relation("UserJobEvents", fields: [userId], references: [id])
+  
+  @@index([jobId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@index([userId])
+}
+
+model JobStatusHistory {
+  id                String           @id @default(uuid())
+  jobId             String
+  fromStatus        JobStatus?
+  toStatus          JobStatus
+  changedBy         String?
+  changeReason      String?
+  timestamp         DateTime         @default(now())
+  metadata          Json?
+  
+  // Relations
+  job               Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user              User?             @relation("UserJobStatusChanges", fields: [changedBy], references: [id])
+  
+  @@index([jobId])
+  @@index([toStatus])
+  @@index([timestamp])
+  @@index([changedBy])
 }
 
 enum UserRole {
@@ -324,4 +434,108 @@ enum AuditSeverity {
   WARNING
   ERROR
   CRITICAL
+}
+
+enum JobStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  PUBLISHED
+  ON_HOLD
+  CANCELLED
+  EXPIRED
+  COMPLETED
+  ARCHIVED
+}
+
+enum JobPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum ProjectType {
+  WEB_APP
+  MOBILE_APP
+  API
+  DESIGN
+  DATABASE
+  DEVOPS
+  AI_ML
+  BLOCKCHAIN
+  GAME_DEVELOPMENT
+  ECOMMERCE
+  CMS
+  INTEGRATION
+  MIGRATION
+  MAINTENANCE
+  CONSULTING
+  RESEARCH
+  TESTING
+  DOCUMENTATION
+  TRAINING
+  OTHER
+}
+
+enum WorkLocation {
+  REMOTE
+  ONSITE
+  HYBRID
+  FLEXIBLE
+}
+
+enum JobVisibility {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+  INTERNAL
+}
+
+enum JobEventType {
+  JOB_CREATED
+  JOB_UPDATED
+  JOB_DELETED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  DEADLINE_UPDATED
+  BUDGET_UPDATED
+  REQUIREMENTS_UPDATED
+  JOB_PUBLISHED
+  JOB_APPROVED
+  JOB_ON_HOLD
+  JOB_CANCELLED
+  JOB_COMPLETED
+  JOB_EXPIRED
+  JOB_ARCHIVED
+  JOB_VIEWED
+  JOB_SHARED
+  JOB_BOOKMARKED
+}
+model JobAssignment {
+  id              String   @id @default(uuid())
+  jobId           String   
+  developerId     String   
+  assignedBy      String   
+  assignmentType  String   
+  assignedAt      DateTime @default(now())
+  status          AssignmentStatus @default(PENDING)
+  notes           String?
+
+  // Relations
+  job             Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  developer       User     @relation("DeveloperAssignments", fields: [developerId], references: [id], onDelete: Cascade)
+  assignedByUser  User     @relation("AssignerAssignments", fields: [assignedBy], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
 }
