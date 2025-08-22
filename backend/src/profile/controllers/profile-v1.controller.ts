@@ -20,7 +20,7 @@ import { UpdateAdminProfileDto } from '../dto/update-admin-profile.dto/update-ad
 import { ProfileService } from '../profile.service';
 import { RateLimitGuard } from '../guards/rate-limit.guard';
 
-@ApiTags('User Management - V1')
+@ApiTags('User Profiles')
 
 @Controller({ path: 'profile', version: '1' })
 export class ProfileV1Controller {

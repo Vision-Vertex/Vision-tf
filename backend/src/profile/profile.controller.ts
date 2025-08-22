@@ -1,4 +1,4 @@
-import { Controller, Patch, Get, Req, Body, UseGuards } from '@nestjs/common';
+import { Controller, Patch, Get, Req, Body, UseGuards, Post, UseInterceptors, UploadedFile } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -8,7 +8,9 @@ import {
   ApiForbiddenResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuardWithRoles } from '../auth/guards/auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
@@ -25,7 +27,7 @@ import {
   ProfileRequiredFieldsDto,
 } from './dto/profile-completion.dto/profile-completion.dto';
 
-@ApiTags('User Management')
+@ApiTags('User Profiles')
 @Controller({ path: 'profile' })
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
@@ -127,7 +129,7 @@ export class ProfileController {
   @ApiOperation({
     summary: 'Update admin profile',
     description:
-      'Updates admin profile information (admin role only). Rate limited to 5 requests per minute.',
+      'Updates admin profile information (admin role only). Rate limited to 10 requests per minute.',
   })
   @ApiOkResponse({
     description: 'Admin profile updated successfully',
@@ -147,6 +149,37 @@ export class ProfileController {
   })
   updateAdminProfile(@Req() req: any, @Body() dto: UpdateAdminProfileDto) {
     return this.profileService.updateAdminProfile(req.user.userId, dto);
+  }
+
+  // POST /profile/picture/upload (all authenticated users)
+  @UseGuards(AuthGuardWithRoles, RateLimitGuard)
+  @Post('picture/upload')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiBearerAuth('JWT-auth')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Upload profile picture',
+    description:
+      'Uploads a profile picture image. Supports JPG, PNG, WebP formats. Max size: 5MB. Rate limited to 5 uploads per minute.',
+  })
+  @ApiOkResponse({
+    description: 'Profile picture uploaded successfully',
+    type: SuccessResponse,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file format or size',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Unauthorized - JWT token required',
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Rate limit exceeded - too many uploads',
+  })
+  uploadProfilePicture(
+    @Req() req: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.profileService.uploadProfilePicture(req.user.userId, file);
   }
 
   // GET /profile (any authenticated user)

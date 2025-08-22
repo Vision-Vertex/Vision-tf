@@ -37,6 +37,7 @@ import {
   SuccessResponse,
   CreatedResponse,
 } from '../common/dto/api-response.dto';
+import { AuditEventType, AuditEventCategory, AuditSeverity } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -470,8 +471,8 @@ export class AuthService {
     // Log invitation deletion
     await this.auditService.log({
       userId: adminUserId,
-      eventType: 'USER_DELETED', // Using existing event type
-      eventCategory: 'USER_MANAGEMENT',
+      eventType: AuditEventType.USER_DELETED,
+      eventCategory: AuditEventCategory.USER_MANAGEMENT,
       description: `Admin invitation deleted for ${invitation.email}`,
       details: {
         invitationId,
@@ -480,7 +481,7 @@ export class AuthService {
       },
       ipAddress,
       userAgent,
-      severity: 'INFO',
+      severity: AuditSeverity.INFO,
     });
 
     return new SuccessResponse('Admin invitation deleted successfully');
@@ -988,8 +989,8 @@ export class AuthService {
 
   async logout(
     userId: string,
+    sessionToken: string,
     refreshToken?: string,
-    sessionToken?: string,
     ipAddress?: string,
     userAgent?: string,
   ) {
@@ -1001,33 +1002,21 @@ export class AuthService {
       });
     }
 
-    if (sessionToken) {
-      // Terminate specific session
-      await this.sessionService.terminateSession(sessionToken);
-      await this.auditService.logUserLogout(
-        userId,
-        ipAddress,
-        userAgent,
-        sessionToken,
-      );
-      await this.auditService.logSessionTerminated(
-        userId,
-        sessionToken,
-        ipAddress,
-        userAgent,
-      );
-      return new SuccessResponse('Logged out from this device successfully');
-    } else {
-      // Terminate all user sessions
-      await this.sessionService.terminateAllUserSessions(userId);
-      await this.auditService.logUserLogout(userId, ipAddress, userAgent);
-      await this.auditService.logAllSessionsTerminated(
-        userId,
-        ipAddress,
-        userAgent,
-      );
-      return new SuccessResponse('Logged out from all devices successfully');
-    }
+    // Terminate specific session
+    await this.sessionService.terminateSession(sessionToken);
+    await this.auditService.logUserLogout(
+      userId,
+      ipAddress,
+      userAgent,
+      sessionToken,
+    );
+    await this.auditService.logSessionTerminated(
+      userId,
+      sessionToken,
+      ipAddress,
+      userAgent,
+    );
+    return new SuccessResponse('Logged out from this device successfully');
   }
 
   async deactivateAccount(userId: string, password: string) {
@@ -1239,22 +1228,16 @@ export class AuthService {
 
   // Session management methods
   async getUserSessions(userId: string) {
-    const sessions = await this.sessionService.getUserSessions(userId);
-    return new SuccessResponse('User sessions retrieved successfully', {
-      sessions: sessions.map((session) => ({
-        id: session.id,
-        deviceName: session.deviceName,
-        userAgent: session.userAgent,
-        ipAddress: session.ipAddress,
-        lastActivityAt: session.lastActivityAt,
-        createdAt: session.createdAt,
-        expiresAt: session.expiresAt,
-        rememberMe: session.rememberMe,
-      })),
-    });
+    const sessionStats = await this.sessionService.getUserSessionStats(userId);
+    return new SuccessResponse('User sessions retrieved successfully', sessionStats);
   }
 
-  async terminateSession(userId: string, sessionToken: string) {
+  async terminateSession(
+    userId: string, 
+    sessionToken: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     // Verify the session belongs to the user
     const session = await this.prisma.session.findFirst({
       where: {
@@ -1268,12 +1251,88 @@ export class AuthService {
       throw new BadRequestException('Session not found or already terminated');
     }
 
+    // Terminate the session
     await this.sessionService.terminateSession(sessionToken);
+
+    // Log comprehensive audit events
+    await this.auditService.logSessionTerminated(
+      userId,
+      sessionToken,
+      ipAddress,
+      userAgent,
+    );
+
+    // Log additional session details for security monitoring
+    await this.auditService.log({
+      userId,
+      eventType: AuditEventType.SESSION_TERMINATED,
+      eventCategory: AuditEventCategory.SESSION,
+      description: 'Session terminated via session management endpoint',
+      details: {
+        sessionId: session.id,
+        deviceName: session.deviceName,
+        deviceFingerprint: session.deviceFingerprint,
+        isIncognito: session.isIncognito,
+        rememberMe: session.rememberMe,
+        sessionDuration: Date.now() - session.createdAt.getTime(),
+        terminationMethod: 'manual',
+      },
+      sessionToken,
+      ipAddress,
+      userAgent,
+      severity: AuditSeverity.INFO,
+    });
+
     return new SuccessResponse('Session terminated successfully');
   }
 
-  async terminateAllSessions(userId: string) {
+  async terminateAllSessions(
+    userId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    // Get all active sessions before termination for logging
+    const activeSessions = await this.prisma.session.findMany({
+      where: {
+        userId,
+        isActive: true,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    // Terminate all sessions
     await this.sessionService.terminateAllUserSessions(userId);
+
+    // Log comprehensive audit events
+    await this.auditService.logAllSessionsTerminated(
+      userId,
+      ipAddress,
+      userAgent,
+    );
+
+    // Log additional details for security monitoring
+    await this.auditService.log({
+      userId,
+      eventType: AuditEventType.ALL_SESSIONS_TERMINATED,
+      eventCategory: AuditEventCategory.SESSION,
+      description: 'All sessions terminated via session management endpoint',
+      details: {
+        sessionsTerminated: activeSessions.length,
+        sessionIds: activeSessions.map(s => s.id),
+        deviceCount: new Set(activeSessions.map(s => s.deviceFingerprint)).size,
+        devices: activeSessions.map(s => ({
+          deviceName: s.deviceName,
+          deviceFingerprint: s.deviceFingerprint,
+          isIncognito: s.isIncognito,
+          rememberMe: s.rememberMe,
+        })),
+        terminationMethod: 'bulk',
+      },
+      ipAddress,
+      userAgent,
+      severity: AuditSeverity.INFO,
+    });
+
     return new SuccessResponse('All sessions terminated successfully');
   }
 

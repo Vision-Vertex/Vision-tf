@@ -26,7 +26,7 @@ import { AuthGuardWithRoles } from '../../auth/guards/auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
-@ApiTags('Portfolio')
+@ApiTags('User Profiles')
 @ApiBearerAuth()
 @Controller('profile/portfolio')
 @UseGuards(AuthGuardWithRoles)

@@ -17,7 +17,7 @@ import { AuthGuardWithRoles } from '../../auth/guards/auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
-@ApiTags('User Management')
+@ApiTags('User Profiles')
 @Controller('profile/developer/availability')
 @UseGuards(AuthGuardWithRoles)
 @ApiBearerAuth('JWT-auth')

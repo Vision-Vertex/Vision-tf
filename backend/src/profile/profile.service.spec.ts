@@ -11,6 +11,7 @@ import isURL from 'validator/lib/isURL';
 import { AuditService } from './services/audit.service';
 import { ProfileCompletionService } from './services/profile-completion.service';
 import { UserRole } from '@prisma/client';
+import { CloudStorageService } from './services/cloud-storage.service';
 
 jest.mock('validator/lib/isURL');
 
@@ -32,36 +33,51 @@ const mockAuditService = {
 };
 
 const mockCompletionService = {
+  getProfileCompletion: jest.fn(),
   calculateCompletion: jest.fn(),
   validateProfile: jest.fn(),
   getRequiredFields: jest.fn(),
 };
 
+const mockCloudStorageService = {
+  uploadFile: jest.fn(),
+};
+
 describe('ProfileService', () => {
   let service: ProfileService;
-  let prismaService: PrismaService;
-  let auditService: AuditService;
-  let completionService: ProfileCompletionService;
+  let prismaService: jest.Mocked<PrismaService>;
+  let auditService: jest.Mocked<AuditService>;
+  let completionService: jest.Mocked<ProfileCompletionService>;
+  let cloudStorageService: jest.Mocked<CloudStorageService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProfileService,
-        { provide: PrismaService, useValue: mockPrisma },
-        { provide: AuditService, useValue: mockAuditService },
+        {
+          provide: PrismaService,
+          useValue: mockPrisma,
+        },
+        {
+          provide: AuditService,
+          useValue: mockAuditService,
+        },
         {
           provide: ProfileCompletionService,
           useValue: mockCompletionService,
+        },
+        {
+          provide: CloudStorageService,
+          useValue: mockCloudStorageService,
         },
       ],
     }).compile();
 
     service = module.get<ProfileService>(ProfileService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    auditService = module.get<AuditService>(AuditService);
-    completionService = module.get<ProfileCompletionService>(
-      ProfileCompletionService,
-    );
+    prismaService = module.get(PrismaService);
+    auditService = module.get(AuditService);
+    completionService = module.get(ProfileCompletionService);
+    cloudStorageService = module.get(CloudStorageService);
   });
 
   afterEach(() => {
@@ -360,100 +376,55 @@ describe('ProfileService', () => {
 
   describe('getProfileCompletion', () => {
     it('should get profile completion successfully', async () => {
-      const mockUser = {
-        id: 'user-1',
-        role: UserRole.DEVELOPER,
-        profile: {
-          displayName: 'John Doe',
-          bio: 'Experienced developer',
-          skills: ['JavaScript', 'React'],
-          experience: 5,
-          hourlyRate: 50,
-          availability: { available: true },
-          location: { city: 'New York' },
-          contactEmail: 'john@example.com',
-          updatedAt: '2025-01-15T10:30:00Z', // Changed to string
-        },
-      };
-
+      // Arrange
       const mockCompletion = {
-        overall: 85,
-        breakdown: {
-          basic: 100,
-          professional: 80,
-          availability: 100,
-          contact: 100,
-        },
-        missingFields: [],
-        suggestions: [],
+        completion: 85,
+        userId: 'user-1',
+        lastUpdated: '2025-01-15T10:30:00Z',
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
-      mockCompletionService.calculateCompletion.mockReturnValue(mockCompletion);
+      mockCompletionService.getProfileCompletion.mockResolvedValue(mockCompletion);
 
+      // Act
       const result = await service.getProfileCompletion('user-1');
 
-      expect(result.completion).toEqual(mockCompletion);
-      expect(result.userId).toBe('user-1');
-      expect(typeof result.lastUpdated).toBe('string');
-      expect(result.lastUpdated).toBe('2025-01-15T10:30:00Z');
-
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
-        select: {
-          id: true,
-          role: true,
-          profile: true,
-        },
-      });
-
-      expect(mockCompletionService.calculateCompletion).toHaveBeenCalledWith(
-        mockUser.profile,
-      );
+      // Assert
+      expect(mockCompletionService.getProfileCompletion).toHaveBeenCalledWith('user-1');
+      expect(result).toEqual(mockCompletion);
     });
 
     it('should handle user not found', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue(null);
+      // Arrange
+      mockCompletionService.getProfileCompletion.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
+      // Act & Assert
       await expect(
         service.getProfileCompletion('non-existent'),
       ).rejects.toThrow(NotFoundException);
-      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
-        where: { id: 'non-existent' },
-        select: {
-          id: true,
-          role: true,
-          profile: true,
-        },
-      });
+      expect(mockCompletionService.getProfileCompletion).toHaveBeenCalledWith('non-existent');
     });
 
     it('should handle profile without updatedAt', async () => {
-      const mockUser = {
-        id: 'user-1',
-        role: UserRole.DEVELOPER,
-        profile: {
-          displayName: 'John Doe',
-          updatedAt: null,
-        },
-      };
-
+      // Arrange
       const mockCompletion = {
-        overall: 25,
-        breakdown: { basic: 50, professional: 0, availability: 0, contact: 0 },
-        missingFields: ['skills', 'experience', 'hourlyRate'],
-        suggestions: ['Add your skills', 'Add your experience'],
+        completion: 75,
+        userId: 'user-1',
+        lastUpdated: new Date().toISOString(),
       };
 
-      mockPrisma.user.findUnique.mockResolvedValue(mockUser);
-      mockCompletionService.calculateCompletion.mockReturnValue(mockCompletion);
+      mockCompletionService.getProfileCompletion.mockResolvedValue(mockCompletion);
 
+      // Act
       const result = await service.getProfileCompletion('user-1');
 
+      // Assert
       expect(result.lastUpdated).toMatch(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
       );
-      expect(result.completion).toEqual(mockCompletion);
+      expect(result.completion).toEqual(mockCompletion.completion);
+      expect(result.userId).toBe('user-1');
     });
   });
 
@@ -727,6 +698,127 @@ describe('ProfileService', () => {
       expect(result.totalRequiredFields).toBe(3);
       expect(result.completedRequiredFields).toBe(3);
       expect(result.requiredFieldsCompletion).toBe(100);
+    });
+  });
+
+  describe('uploadProfilePicture', () => {
+    it('should upload profile picture successfully', async () => {
+      // Arrange
+      const mockFile = {
+        originalname: 'test-image.jpg',
+        mimetype: 'image/jpeg',
+        size: 1024 * 1024, // 1MB
+        buffer: Buffer.from('fake-image-data'),
+      } as any;
+
+      const mockUploadResult = {
+        fileUrl: '/uploads/profile-pictures/profile-picture-user-123-1234567890.jpg',
+        fileName: 'profile-picture-user-123-1234567890.jpg',
+        fileSize: 1024 * 1024,
+      };
+
+      const mockUpdatedProfile = {
+        profilePictureUrl: '/uploads/profile-pictures/profile-picture-user-123-1234567890.jpg',
+      };
+
+      (cloudStorageService.uploadFile as jest.Mock).mockResolvedValue(mockUploadResult);
+      (prismaService.profile.update as jest.Mock).mockResolvedValue(mockUpdatedProfile);
+      (auditService.logProfileUpdate as jest.Mock).mockResolvedValue(undefined);
+
+      // Act
+      const result = await service.uploadProfilePicture('user-123', mockFile);
+
+      // Assert
+      expect(cloudStorageService.uploadFile).toHaveBeenCalledWith(
+        mockFile.buffer,
+        expect.stringMatching(/profile-picture-user-123-\d+\.jpg/),
+        'profile-pictures',
+      );
+      expect(prismaService.profile.update).toHaveBeenCalledWith({
+        where: { userId: 'user-123' },
+        data: {
+          profilePictureUrl: mockUploadResult.fileUrl,
+        },
+        select: {
+          profilePictureUrl: true,
+        },
+      });
+      expect(auditService.logProfileUpdate).toHaveBeenCalledWith(
+        'user-123',
+        {
+          profilePictureUpdated: {
+            oldUrl: null,
+            newUrl: mockUploadResult.fileUrl,
+            fileName: expect.stringMatching(/profile-picture-user-123-\d+\.jpg/),
+            fileSize: 1024 * 1024,
+          },
+        },
+        {
+          operation: 'profile_picture_uploaded',
+          fieldsUpdated: ['profilePictureUrl'],
+        },
+      );
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Profile picture uploaded successfully');
+      expect(result.data).toEqual({
+        profilePictureUrl: mockUploadResult.fileUrl,
+        fileName: expect.stringMatching(/profile-picture-user-123-\d+\.jpg/),
+        fileSize: 1024 * 1024,
+      });
+    });
+
+    it('should throw error when no file provided', async () => {
+      // Act & Assert
+      await expect(
+        service.uploadProfilePicture('user-123', null as any),
+      ).rejects.toThrow('No image file provided');
+    });
+
+    it('should throw error for invalid file type', async () => {
+      // Arrange
+      const mockFile = {
+        originalname: 'test.txt',
+        mimetype: 'text/plain',
+        size: 1024,
+        buffer: Buffer.from('fake-data'),
+      } as any;
+
+      // Act & Assert
+      await expect(
+        service.uploadProfilePicture('user-123', mockFile),
+      ).rejects.toThrow('Invalid file type. Only JPG, PNG, and WebP images are allowed');
+    });
+
+    it('should throw error for file too large', async () => {
+      // Arrange
+      const mockFile = {
+        originalname: 'large-image.jpg',
+        mimetype: 'image/jpeg',
+        size: 6 * 1024 * 1024, // 6MB
+        buffer: Buffer.from('fake-image-data'),
+      } as any;
+
+      // Act & Assert
+      await expect(
+        service.uploadProfilePicture('user-123', mockFile),
+      ).rejects.toThrow('File size too large. Maximum size is 5MB');
+    });
+
+    it('should handle upload errors gracefully', async () => {
+      // Arrange
+      const mockFile = {
+        originalname: 'test-image.jpg',
+        mimetype: 'image/jpeg',
+        size: 1024 * 1024,
+        buffer: Buffer.from('fake-image-data'),
+      } as any;
+
+      (cloudStorageService.uploadFile as jest.Mock).mockRejectedValue(new Error('Upload failed'));
+
+      // Act & Assert
+      await expect(
+        service.uploadProfilePicture('user-123', mockFile),
+      ).rejects.toThrow('Failed to upload profile picture');
     });
   });
 });

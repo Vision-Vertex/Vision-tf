@@ -58,6 +58,34 @@ export function isNetworkError(error: AxiosError | Error | unknown): boolean {
 }
 
 /**
+ * Check if the error is a database/server connectivity error
+ * @param error - The error object to check
+ * @returns True if it's a database/server connectivity error
+ */
+export function isDatabaseError(error: AxiosError | Error | unknown): boolean {
+  if (error instanceof AxiosError) {
+    // Check for database-related error codes
+    if (error.response?.status === 500) {
+      const errorResponse = error.response?.data as any;
+      // Check for Prisma database errors
+      if (errorResponse?.message?.includes('database') || 
+          errorResponse?.message?.includes('Prisma') ||
+          errorResponse?.message?.includes('localhost:5432') ||
+          errorResponse?.message?.includes('P1001')) {
+        return true;
+      }
+    }
+    
+    // Check for network errors that might indicate server issues
+    if (!error.response) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Check if the error is an authentication-related error
  * @param error - The error object to check
  * @returns True if it's an authentication error
@@ -79,6 +107,11 @@ export function isAuthError(error: AxiosError | Error | unknown): boolean {
 export function getErrorMessage(error: AxiosError | Error | unknown): string {
   if (error instanceof AxiosError) {
     const errorResponse = error.response?.data as ErrorResponse;
+    
+    // Check for database/server connectivity issues first
+    if (isDatabaseError(error)) {
+      return 'Database connection issue. The server is currently unavailable. Please try again later or contact support if the problem persists.';
+    }
     
     // Try to get message from API response
     if (errorResponse?.message) {

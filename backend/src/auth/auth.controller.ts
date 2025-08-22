@@ -61,7 +61,7 @@ import {
   LoginPattern,
 } from '../common/dto/api-response.dto';
 
-@ApiTags('Authentication & Authorization')
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -438,9 +438,10 @@ export class AuthController {
         },
         sessionToken: {
           type: 'string',
-          description: 'Specific session token to terminate (optional)',
+          description: 'Session token to terminate (required)',
         },
       },
+      required: ['sessionToken'],
     },
   })
   @ApiOkResponse({
@@ -452,14 +453,14 @@ export class AuthController {
   })
   logout(
     @Req() req: any,
-    @Body() body: { refreshToken?: string; sessionToken?: string },
+    @Body() body: { refreshToken?: string; sessionToken: string },
   ) {
     const userAgent = req.headers['user-agent'] || 'Unknown';
     const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown';
     return this.authService.logout(
       req.user.userId,
-      body.refreshToken,
       body.sessionToken,
+      body.refreshToken,
       ipAddress,
       userAgent,
     );
@@ -470,7 +471,7 @@ export class AuthController {
   @Get('sessions')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Session Management')
+  @ApiTags('Authentication')
   @ApiOperation({
     summary: 'Get user sessions',
     description: 'Retrieves all active sessions for the authenticated user.',
@@ -490,7 +491,7 @@ export class AuthController {
   @Post('sessions/terminate')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Session Management')
+  @ApiTags('Authentication')
   @ApiOperation({
     summary: 'Terminate sessions',
     description: 'Terminates specific session or all sessions for the user.',
@@ -504,13 +505,22 @@ export class AuthController {
     description: 'Unauthorized - JWT token required',
   })
   terminateSession(@Req() req: any, @Body() dto: TerminateSessionsDto) {
+    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown';
+    
     if (dto.sessionToken) {
       return this.authService.terminateSession(
         req.user.userId,
         dto.sessionToken,
+        ipAddress,
+        userAgent,
       );
     } else {
-      return this.authService.terminateAllSessions(req.user.userId);
+      return this.authService.terminateAllSessions(
+        req.user.userId,
+        ipAddress,
+        userAgent,
+      );
     }
   }
 
@@ -518,7 +528,7 @@ export class AuthController {
   @Post('deactivate')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('User Management')
+  @ApiTags('Authentication')
   @ApiOperation({
     summary: 'Deactivate account',
     description: 'Deactivates the user account after password verification.',
@@ -782,7 +792,7 @@ export class AuthController {
   @Get('developer/profile')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('User Management')
+  @ApiTags('User Profiles')
   @ApiOperation({
     summary: 'Get developer profile',
     description:
@@ -811,7 +821,7 @@ export class AuthController {
   @Get('client/profile')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('User Management')
+  @ApiTags('User Profiles')
   @ApiOperation({
     summary: 'Get client profile',
     description: 'Retrieves client profile information (client role only).',
@@ -839,7 +849,7 @@ export class AuthController {
   @Get('audit/logs')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Audit & Security')
+  @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Get audit logs',
     description: 'Retrieves audit logs with optional filtering (admin only).',
@@ -864,7 +874,7 @@ export class AuthController {
   @Get('audit/logs/recent')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Audit & Security')
+  @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Get recent audit logs',
     description: 'Retrieves recent audit logs (admin only).',
@@ -894,7 +904,7 @@ export class AuthController {
   @Get('audit/logs/user/:userId')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Audit & Security')
+  @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Get user audit logs',
     description: 'Retrieves audit logs for a specific user (admin only).',
@@ -928,7 +938,7 @@ export class AuthController {
   @Get('security/suspicious-activities')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Audit & Security')
+  @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Get suspicious activities',
     description:
@@ -954,7 +964,7 @@ export class AuthController {
   @Put('security/suspicious-activities/:activityId')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Audit & Security')
+  @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Update suspicious activity status',
     description: 'Updates the status of a suspicious activity (admin only).',
@@ -996,7 +1006,7 @@ export class AuthController {
   @Get('security/login-patterns/:userId')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Audit & Security')
+  @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Get user login patterns',
     description: 'Retrieves login patterns for a specific user (admin only).',
@@ -1025,7 +1035,7 @@ export class AuthController {
   @Post('security/detect-password-spray')
   @Version('1')
   @ApiBearerAuth('JWT-auth')
-  @ApiTags('Audit & Security')
+  @ApiTags('Admin Operations')
   @ApiOperation({
     summary: 'Detect password spray attacks',
     description:

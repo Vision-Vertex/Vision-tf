@@ -58,23 +58,8 @@ export class SessionService {
     const deviceName =
       this.deviceFingerprintService.createDeviceName(deviceInfo);
 
-    // Check for existing session with same device fingerprint
-    const existingSession = await this.prisma.session.findFirst({
-      where: {
-        userId,
-        deviceFingerprint,
-        isActive: true,
-        expiresAt: { gt: new Date() },
-      },
-    });
-
-    if (existingSession) {
-      // Extend existing session
-      return this.extendSession(existingSession.id, rememberMe);
-    }
-
-    // Check session limit before creating new session
-    await this.enforceSessionLimit(userId);
+    // Enforce smart session limits before creating new session
+    await this.enforceSmartSessionLimits(userId, deviceFingerprint);
 
     const sessionToken = this.generateSessionToken();
     const expiresAt = this.calculateExpiration(rememberMe);
@@ -160,8 +145,9 @@ export class SessionService {
     return session;
   }
 
-  async enforceSessionLimit(userId: string) {
-    const activeSessions = await this.prisma.session.count({
+  async enforceSmartSessionLimits(userId: string, deviceFingerprint: string) {
+    // Get all active sessions for the user
+    const activeSessions = await this.prisma.session.findMany({
       where: {
         userId,
         isActive: true,
@@ -169,11 +155,40 @@ export class SessionService {
       },
     });
 
-    if (activeSessions >= this.sessionConfig.maxSessionsPerUser) {
+    // Count total sessions
+    const totalSessions = activeSessions.length;
+    if (totalSessions >= this.sessionConfig.maxSessionsPerUser) {
       throw new BadRequestException(
-        'Maximum active sessions reached. Please logout from another device first.',
+        `Maximum active sessions (${this.sessionConfig.maxSessionsPerUser}) reached. Please logout from another session first.`,
       );
     }
+
+    // Count sessions for this specific device
+    const deviceSessions = activeSessions.filter(
+      session => session.deviceFingerprint === deviceFingerprint,
+    );
+    if (deviceSessions.length >= this.sessionConfig.maxSessionsPerDevice) {
+      throw new BadRequestException(
+        `Maximum sessions (${this.sessionConfig.maxSessionsPerDevice}) reached for this device. Please logout from another session on this device first.`,
+      );
+    }
+
+    // Count unique devices
+    const uniqueDevices = new Set(
+      activeSessions.map(session => session.deviceFingerprint),
+    );
+    const isNewDevice = !uniqueDevices.has(deviceFingerprint);
+    
+    if (isNewDevice && uniqueDevices.size >= this.sessionConfig.maxDevicesPerUser) {
+      throw new BadRequestException(
+        `Maximum devices (${this.sessionConfig.maxDevicesPerUser}) reached. Please logout from another device first.`,
+      );
+    }
+  }
+
+  async enforceSessionLimit(userId: string) {
+    // For backward compatibility, use the new smart limits
+    await this.enforceSmartSessionLimits(userId, 'legacy-check');
   }
 
   async terminateSession(sessionToken: string) {
@@ -199,6 +214,46 @@ export class SessionService {
       },
       orderBy: { lastActivityAt: 'desc' },
     });
+  }
+
+  async getUserSessionStats(userId: string) {
+    const activeSessions = await this.getUserSessions(userId);
+    
+    // Group sessions by device
+    const sessionsByDevice = new Map<string, any[]>();
+    activeSessions.forEach(session => {
+      const deviceKey = session.deviceFingerprint || 'unknown';
+      if (!sessionsByDevice.has(deviceKey)) {
+        sessionsByDevice.set(deviceKey, []);
+      }
+      sessionsByDevice.get(deviceKey)!.push(session);
+    });
+
+    // Calculate statistics
+    const totalSessions = activeSessions.length;
+    const uniqueDevices = sessionsByDevice.size;
+    const deviceStats = Array.from(sessionsByDevice.entries()).map(([fingerprint, sessions]) => ({
+      deviceFingerprint: fingerprint,
+      deviceName: sessions[0]?.deviceName || 'Unknown Device',
+      sessionCount: sessions.length,
+      sessions: sessions.map(s => ({
+        id: s.id,
+        sessionToken: s.sessionToken,
+        isIncognito: s.isIncognito,
+        lastActivityAt: s.lastActivityAt,
+        expiresAt: s.expiresAt,
+        rememberMe: s.rememberMe,
+      })),
+    }));
+
+    return {
+      totalSessions,
+      uniqueDevices,
+      maxSessionsPerUser: this.sessionConfig.maxSessionsPerUser,
+      maxSessionsPerDevice: this.sessionConfig.maxSessionsPerDevice,
+      maxDevicesPerUser: this.sessionConfig.maxDevicesPerUser,
+      deviceStats,
+    };
   }
 
   async updateSessionActivity(sessionToken: string) {

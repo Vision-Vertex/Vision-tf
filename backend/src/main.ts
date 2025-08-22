@@ -29,23 +29,17 @@ async function bootstrap() {
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('Vision-TF Authentication API')
+    .setTitle('Vision-TF API')
     .setDescription(
-      'Complete authentication system with advanced security features',
+      'Complete platform API for talent management, job assignments, and user profiles',
     )
     .setVersion('1.0.0')
-    .addTag(
-      'Authentication & Authorization',
-      'Core authentication and authorization endpoints',
-    )
-    .addTag('User Management', 'User profile and account management')
-    .addTag('Session Management', 'Session tracking and management')
-    .addTag('Admin Operations', 'Administrative endpoints (admin only)')
-    .addTag(
-      'Audit & Security',
-      'Audit logging and security monitoring (admin only)',
-    )
-    .addTag('Health', 'Application health and monitoring endpoints')
+    .addTag('Authentication', 'User authentication, registration, and session management')
+    .addTag('User Profiles', 'User profile management, skills, availability, and portfolio')
+    .addTag('Job Management', 'Job assignments, status tracking, and job-related operations')
+    .addTag('Admin Operations', 'Administrative functions and user management (admin only)')
+    .addTag('Search & Discovery', 'User search, filtering, and discovery features')
+    .addTag('Health & Monitoring', 'Application health checks and system monitoring')
     .addBearerAuth(
       {
         type: 'http',
@@ -70,9 +64,13 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
-      docExpansion: 'none',
+      docExpansion: 'list',
       filter: true,
       showRequestDuration: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+      defaultModelsExpandDepth: 1,
+      defaultModelExpandDepth: 1,
     },
   });
 
