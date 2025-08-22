@@ -50,6 +50,8 @@ model User {
   jobStatusChanges         JobStatusHistory[]   @relation("UserJobStatusChanges")
   developerAssignments JobAssignment[] @relation("DeveloperAssignments")
   assignerAssignments  JobAssignment[] @relation("AssignerAssignments")
+  teamMemberships   TeamMember[]      
+  teamAssignments   TeamAssignment[]   
 }
 
 
@@ -255,7 +257,12 @@ model Job {
   status            JobStatus        @default(DRAFT)
   
 
+  // Skills structure: [{"skill": "React", "level": "EXPERT", "weight": 1.0}]
   requiredSkills    Json?            
+  // Skills structure: [{"skill": "TypeScript", "level": "INTERMEDIATE", "weight": 0.5}]
+  preferredSkills   Json?            
+  // Budget structure: {"type": "FIXED"|"HOURLY"|"MILESTONE", "amount": 5000, "currency": "USD", "milestones": [...]}
+  budget            Json?            
   estimatedHours    Int?
   priority          JobPriority      @default(MEDIUM)
   projectType       ProjectType?
@@ -303,6 +310,7 @@ model Job {
   @@index([publishedAt])
   @@index([status, visibility])
   @@index([clientId, status])
+  teamAssignments   TeamAssignment[]
 }
 
 model JobEvent {
@@ -440,12 +448,13 @@ enum JobStatus {
   DRAFT
   PENDING
   APPROVED
-  PUBLISHED
-  ON_HOLD
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
   CANCELLED
   EXPIRED
-  COMPLETED
-  ARCHIVED
+  ON_HOLD
+  UNDER_REVIEW
 }
 
 enum JobPriority {
@@ -538,4 +547,48 @@ enum AssignmentStatus {
   COMPLETED
   CANCELLED
   FAILED
+}
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  members     TeamMember[]
+  assignments TeamAssignment[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  role      TeamRole @default(MEMBER) // DEV, LEAD, etc.
+  joinedAt  DateTime @default(now())
+
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+model TeamAssignment {
+  id        String           @id @default(uuid())
+  jobId     String
+  teamId    String
+  status    AssignmentStatus @default(PENDING)
+  notes     String?
+  assignedAt DateTime        @default(now())
+  assignedBy String
+
+  job        Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  team       Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assignedByUser User @relation(fields: [assignedBy], references: [id], onDelete: Cascade)
+}
+
+enum TeamRole {
+  LEAD
+  MEMBER
+  REVIEWER
 }
