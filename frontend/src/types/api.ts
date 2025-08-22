@@ -68,8 +68,8 @@ export interface RefreshTokenRequest {
 }
 
 export interface LogoutRequest {
-  refreshToken?: string;
-  sessionToken?: string;
+  refreshToken: string;
+  sessionToken: string;
 }
 
 export interface DeactivateAccountRequest {
@@ -148,24 +148,162 @@ export interface SignupUserData {
 export interface Profile {
   id: string;
   userId: string;
-  displayName: string;
+  displayName?: string;
   bio?: string;
   profilePictureUrl?: string;
+  chatLastReadAt?: string;
   skills?: string[];
-  experience?: string;
-  availability?: string;
-  portfolioLinks?: string[];
+  experience?: number;
+  availability?: Availability;
   companyName?: string;
   companyWebsite?: string;
-  billingAddress?: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-  };
+  adminPreferences?: Record<string, any>;
+  companyDescription?: string;
+  companySize?: string;
+  contactEmail?: string;
+  contactPerson?: string;
+  contactPhone?: string;
   createdAt: string;
+  currency?: string;
+  education?: Education;
+  hourlyRate?: number;
+  industry?: string;
+  lastSystemAccess?: string;
+  location?: Location;
+  permissions?: string[];
+  projectPreferences?: ProjectPreferences;
+  socialLinks?: SocialLinks;
+  systemRole?: string;
   updatedAt: string;
+  workPreferences?: WorkPreferences;
+  portfolioLinks?: PortfolioLinks;
+  billingAddress?: BillingAddress;
+  role?: 'DEVELOPER' | 'CLIENT' | 'ADMIN';
+}
+
+// Profile response from backend (includes user data)
+export interface ProfileResponse {
+  userId: string;
+  email: string;
+  role: 'DEVELOPER' | 'CLIENT' | 'ADMIN';
+  profile: Profile;
+}
+
+// Developer Profile Types
+export interface Availability {
+  available?: boolean;
+  hours?: string;
+  timezone?: string;
+  noticePeriod?: string;
+  maxHoursPerWeek?: number;
+  preferredProjectTypes?: string[];
+}
+
+export interface PortfolioLink {
+  label: string;
+  url: string;
+  description?: string;
+}
+
+export interface PortfolioLinks {
+  github?: string;
+  linkedin?: string;
+  website?: string;
+  x?: string;
+  customLinks?: PortfolioLink[];
+}
+
+export interface Certification {
+  name: string;
+  issuer: string;
+  dateObtained: string;
+  expiryDate?: string;
+  credentialId?: string;
+}
+
+export interface Education {
+  degree?: string;
+  institution?: string;
+  graduationYear?: number;
+  certifications?: Certification[];
+}
+
+export interface WorkPreferences {
+  remoteWork?: boolean;
+  onSiteWork?: boolean;
+  hybridWork?: boolean;
+  travelWillingness?: string;
+  contractTypes?: string[];
+  minProjectDuration?: string;
+  maxProjectDuration?: string;
+}
+
+// Client Profile Types
+export interface Location {
+  country?: string;
+  city?: string;
+  state?: string;
+  timezone?: string;
+}
+
+export interface BillingAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+}
+
+export interface CustomLink {
+  label: string;
+  url: string;
+  description?: string;
+}
+
+export interface SocialLinks {
+  linkedin?: string;
+  website?: string;
+  x?: string;
+  customLinks?: CustomLink[];
+}
+
+export interface ProjectPreferences {
+  typicalProjectBudget?: string;
+  typicalProjectDuration?: string;
+  preferredCommunication?: string[];
+  timezonePreference?: string;
+  projectTypes?: string[];
+  budgetRange?: string;
+  communicationStyle?: string;
+}
+
+// Profile Update DTOs
+export interface UpdateDeveloperProfileRequest {
+  bio?: string;
+  skills?: string[];
+  experience?: number;
+  hourlyRate?: number;
+  currency?: string;
+  availability?: Availability;
+  portfolioLinks?: PortfolioLinks;
+  education?: Education;
+  workPreferences?: WorkPreferences;
+}
+
+export interface UpdateClientProfileRequest {
+  companyName?: string;
+  companyWebsite?: string;
+  companySize?: string;
+  industry?: string;
+  companyDescription?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  location?: Location;
+  billingAddress?: BillingAddress;
+  projectPreferences?: ProjectPreferences;
+  socialLinks?: SocialLinks;
+  bio?: string;
 }
 
 export interface Session {
@@ -248,5 +386,63 @@ export interface ErrorResponse {
   error: string;
   timestamp: string;
   path: string;
+}
+
+// Profile Completion and Validation Types
+export interface CompletionBreakdown {
+  overall: number;
+  breakdown: Record<string, number>;
+  missingFields: string[];
+  suggestions: string[];
+}
+
+export interface FieldValidation {
+  field: string;
+  isValid: boolean;
+  errorMessage?: string;
+  value: string;
+  required: boolean;
+}
+
+export interface ProfileValidation {
+  isValid: boolean;
+  validFieldsCount: number;
+  invalidFieldsCount: number;
+  totalFieldsCount: number;
+  validationPercentage: number;
+  fieldValidations: FieldValidation[];
+}
+
+export interface RequiredField {
+  field: string;
+  displayName: string;
+  description: string;
+  category: string;
+  required: boolean;
+  type: string;
+  validationRules?: Record<string, any>;
+}
+
+export interface ProfileCompletionResponse {
+  completion: CompletionBreakdown;
+  userId: string;
+  lastUpdated: string;
+}
+
+export interface ProfileValidationResponse {
+  isValid: boolean;
+  validFieldsCount: number;
+  invalidFieldsCount: number;
+  totalFieldsCount: number;
+  validationPercentage: number;
+  fieldValidations: FieldValidation[];
+  userId: string;
+  validatedAt: string;
+}
+
+export interface RequiredFieldsResponse {
+  requiredFields: RequiredField[];
+  completionStatus: Record<string, boolean>;
+  userId: string;
 }
 
