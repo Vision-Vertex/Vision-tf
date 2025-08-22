@@ -157,7 +157,7 @@ export const useAuth = () => {
   }, [setError]);
 
   const redirectToDashboard = useCallback(() => {
-    router.push('/');
+    router.push('/dashboard');
   }, [router]);
 
   const redirectTo2fa = useCallback(() => {
@@ -430,7 +430,7 @@ export const useAuth = () => {
         loginStore(response.accessToken, response.refreshToken, sessionToken, false, user);
         setIs2faRequired(false);
         setTempAuthData(null);
-        redirectToDashboard();
+        router.push('/dashboard');
         showSuccessToast('2FA verification successful');
       }
     } catch (error) {
@@ -487,4 +487,3 @@ export const useAuth = () => {
     showSuccessToast,
   };
 };
-
