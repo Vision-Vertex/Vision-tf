@@ -18,13 +18,13 @@ export class JobAssignmentService {
   if (!developer || developer.role !== 'DEVELOPER') {
     throw new HttpException('Selected user is not a developer', HttpStatus.BAD_REQUEST);
   }
-
+/*
   // Validate job status
   const allowedStatuses = ['APPROVED', 'PUBLISHED'] as const;
   if (!allowedStatuses.includes(job.status as any)) {
     throw new HttpException('Cannot assign developer. Job is not open for assignment.', HttpStatus.BAD_REQUEST);
   }
-
+*/
   // Ensure assignmentType defaults to MANUAL if not provided
   const assignmentType = dto.assignmentType || 'MANUAL';
 
