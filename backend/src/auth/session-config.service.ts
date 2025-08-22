@@ -6,10 +6,24 @@ export class SessionConfigService {
   constructor(private configService: ConfigService) {}
 
   /**
-   * Maximum number of sessions allowed per user
+   * Maximum number of sessions allowed per user (total across all devices)
    */
   get maxSessionsPerUser(): number {
-    return parseInt(this.configService.get('MAX_SESSIONS_PER_USER') || '3', 10);
+    return parseInt(this.configService.get('MAX_SESSIONS_PER_USER') || '4', 10);
+  }
+
+  /**
+   * Maximum number of sessions allowed per device
+   */
+  get maxSessionsPerDevice(): number {
+    return parseInt(this.configService.get('MAX_SESSIONS_PER_DEVICE') || '2', 10);
+  }
+
+  /**
+   * Maximum number of unique devices allowed per user
+   */
+  get maxDevicesPerUser(): number {
+    return parseInt(this.configService.get('MAX_DEVICES_PER_USER') || '3', 10);
   }
 
   /**

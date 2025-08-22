@@ -40,7 +40,7 @@ import {
 } from '../dto/profile-completion.dto/profile-completion.dto';
 import { AdminUpdateDto } from '../dto/admin-update.dto/admin-update.dto';
 
-@ApiTags('User Management')
+@ApiTags('Admin Operations')
 @Controller('admin/profiles')
 @UseGuards(AuthGuardWithRoles)
 @ApiBearerAuth('JWT-auth')

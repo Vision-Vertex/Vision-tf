@@ -43,7 +43,7 @@ import {
 } from '../dto/update-developer-profile.dto/update-developer-profile.dto';
 import { RateLimitGuard } from '../guards/rate-limit.guard';
 
-@ApiTags('Education & Certifications')
+@ApiTags('User Profiles')
 @Controller('profile/education')
 @UseGuards(AuthGuardWithRoles)
 @Roles(UserRole.DEVELOPER)
