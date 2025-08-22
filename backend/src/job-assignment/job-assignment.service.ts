@@ -89,7 +89,8 @@ export class JobAssignmentService {
     }
     return this.prisma.jobAssignment.delete({ where: { id } });
   }
-  async suggestDevelopers(jobId: string): Promise<DeveloperSuggestionDto[]> {
+
+ async suggestDevelopers(jobId: string): Promise<DeveloperSuggestionDto[]> {
   const job = await this.prisma.job.findUnique({ where: { id: jobId } });
   if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
 
@@ -98,23 +99,36 @@ export class JobAssignmentService {
   const requiredSkills: string[] = job.requiredSkills as string[];
 
   const developers = await this.prisma.user.findMany({
-    where: { role: 'DEVELOPER' },
-    include: { profile: true }, // to get skills
+    where: {
+      role: 'DEVELOPER',
+      profile: {
+        skills: {
+          hasSome: requiredSkills, // filter in DB
+        },
+      },
+    },
+    select: {
+      id: true,
+      firstname: true,
+      lastname: true,
+      username: true,
+      email: true,
+      profile: {
+        select: { skills: true },
+      },
+    },
   });
 
-  // Filter by matching skills
-  const suggestions = developers
-    .filter(dev => dev.profile?.skills?.some(skill => requiredSkills.includes(skill)))
-    .map(dev => ({
-      id: dev.id,
-      firstname: dev.firstname,
-      lastname: dev.lastname,
-      username: dev.username,
-      email: dev.email,
-      skills: dev.profile?.skills || [],
-    }));
-
-  return suggestions;
+  // map Prisma result → DTO
+  return developers.map(dev => ({
+    id: dev.id,
+    firstname: dev.firstname,
+    lastname: dev.lastname,
+    username: dev.username,
+    email: dev.email,
+    skills: dev.profile?.skills || [],
+  }));
+}
 }
 
-}
+
