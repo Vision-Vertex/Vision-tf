@@ -4,6 +4,11 @@ import { CreateJobAssignmentDto } from './dto/create-job-assignment.dto';
 import { UpdateJobAssignmentDto } from './dto/update-job-assignment.dto';
 import { AssignmentStatus } from '@prisma/client';
 import  { DeveloperSuggestionDto } from './dto/developer-suggestion.dto';
+import { CreateTeamDto } from './dto/create-team.dto';
+import { AssignTeamDto } from './dto/assign-team.dto';
+import { CreateTeamAndAssignDto } from './dto/create-assign-team.dto';
+import { UpdateTeamAssignmentStatusDto } from './dto/update-team-assignment.dto';
+
 @Injectable()
 export class JobAssignmentService {
   constructor(private prisma: PrismaService) {}
@@ -130,20 +135,21 @@ async suggestDevelopers(jobId: string): Promise<DeveloperSuggestionDto[]> {
 }
 
 //team
-async createTeam(name: string, developerIds: string[], description?: string) {
-    // Validate developers
+async createTeam(dto: CreateTeamDto) {
     const developers = await this.prisma.user.findMany({
-      where: { id: { in: developerIds }, role: 'DEVELOPER' },
+      where: { id: { in: dto.developerIds }, role: 'DEVELOPER' },
     });
-    if (developers.length !== developerIds.length) {
+
+    if (developers.length !== dto.developerIds.length) {
       throw new HttpException('Some developers not found or not valid', HttpStatus.BAD_REQUEST);
     }
-      return this.prisma.team.create({
+
+    return this.prisma.team.create({
       data: {
-        name,
-        description,
+        name: dto.name,
+        description: dto.description,
         members: {
-          create: developers.map(dev => ({
+          create: developers.map((dev) => ({
             userId: dev.id,
             role: 'MEMBER',
           })),
@@ -152,38 +158,57 @@ async createTeam(name: string, developerIds: string[], description?: string) {
       include: { members: { include: { user: true } } },
     });
   }
-   async assignTeamToJob(jobId: string, teamId: string, assignedBy: string, notes?: string) {
-    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
-    if (!job) throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
 
-    const team = await this.prisma.team.findUnique({ where: { id: teamId } });
-    if (!team) throw new HttpException('Team not found', HttpStatus.NOT_FOUND);
+async assignTeamToJob(dto: AssignTeamDto) {
+  const { jobId, teamId, assignedBy, notes } = dto;
 
-    return this.prisma.teamAssignment.create({
-      data: {
-        jobId,
-        teamId,
-        assignedBy,
-        notes: notes || null,
-      },
-      include: { team: { include: { members: { include: { user: true } } } }, job: true },
+  const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) {
+    throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+  }
+
+  const team = await this.prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) {
+    throw new HttpException('Team not found', HttpStatus.NOT_FOUND);
+  }
+
+  return this.prisma.teamAssignment.create({
+    data: {
+      jobId,
+      teamId,
+      assignedBy,
+      notes: notes || null,
+    },
+    include: {
+      team: { include: { members: { include: { user: true } } } },
+      job: true,
+    },
+  });
+}
+
+async createTeamAndAssign(dto: CreateTeamAndAssignDto) {
+  const team = await this.createTeam(dto.team);
+
+  return this.assignTeamToJob({
+    jobId: dto.jobId,
+    teamId: team.id,
+    assignedBy: dto.assignedBy,
+    notes: dto.notes,
+  });
+}
+
+
+  async updateTeamAssignmentStatus(dto: UpdateTeamAssignmentStatusDto) {
+    const assignment = await this.prisma.teamAssignment.findUnique({
+      where: { id: dto.id },
     });
-  }
-
-  async createTeamAndAssign(jobId: string, name: string, developerIds: string[], assignedBy: string, description?: string, notes?: string) {
-    const team = await this.createTeam(name, developerIds, description);
-    return this.assignTeamToJob(jobId, team.id, assignedBy, notes);
-  }
-
-  async updateTeamAssignmentStatus(id: string, status: AssignmentStatus) {
-    const assignment = await this.prisma.teamAssignment.findUnique({ where: { id } });
     if (!assignment) {
       throw new HttpException('Team assignment not found', HttpStatus.NOT_FOUND);
     }
 
     return this.prisma.teamAssignment.update({
-      where: { id },
-      data: { status },
+      where: { id: dto.id },
+      data: { status: dto.status },
     });
   }
 
@@ -193,6 +218,4 @@ async createTeam(name: string, developerIds: string[], description?: string) {
       include: { team: { include: { members: { include: { user: true } } } } },
     });
   }
-
-
 }

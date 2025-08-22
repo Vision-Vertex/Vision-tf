@@ -21,6 +21,10 @@ import { UserRole } from '@prisma/client';
 import { SuccessResponse } from '../common/dto/api-response.dto';
 import { RateLimitGuard } from '../profile/guards/rate-limit.guard';
 import  { DeveloperSuggestionDto } from './dto/developer-suggestion.dto';
+import { CreateTeamDto } from './dto/create-team.dto';
+import { AssignTeamDto } from './dto/assign-team.dto';
+import { CreateTeamAndAssignDto } from './dto/create-assign-team.dto';
+import { UpdateTeamAssignmentStatusDto } from './dto/update-team-assignment.dto';
 
 @ApiTags('Job Management')
 @Controller({ path: 'assignments' })
@@ -96,7 +100,7 @@ export class JobAssignmentController {
     return this.assignmentsService.remove(id);
   }
 
-  @UseGuards(AuthGuardWithRoles, RateLimitGuard)
+@UseGuards(AuthGuardWithRoles, RateLimitGuard)
 @Roles(UserRole.ADMIN)
 @Get('suggestions/:jobId')
 @ApiBearerAuth('JWT-auth')
@@ -114,6 +118,80 @@ export class JobAssignmentController {
 @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
 suggestDevelopers(@Param('jobId') jobId: string) {
   return this.assignmentsService.suggestDevelopers(jobId);
+}
+//Team Assignment Endpoints
+@UseGuards(AuthGuardWithRoles, RateLimitGuard)
+@Roles(UserRole.ADMIN)
+@Post('team')
+@ApiBearerAuth('JWT-auth')
+@ApiOperation({ summary: 'Create a new team', description: 'Admin creates a developer team.' })
+@ApiCreatedResponse({ description: 'Team created successfully' })
+@ApiBadRequestResponse({ description: 'Invalid input data' })
+@ApiUnauthorizedResponse({ description: 'Unauthorized - JWT required' })
+@ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
+@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+createTeam(@Body() dto: CreateTeamDto) {
+  return this.assignmentsService.createTeam(dto);
+}
+
+@UseGuards(AuthGuardWithRoles, RateLimitGuard)
+@Roles(UserRole.ADMIN)
+@Post('assign')
+@ApiBearerAuth('JWT-auth')
+@ApiOperation({ summary: 'Assign a team to a job', description: 'Admin assigns an existing team to a job.' })
+@ApiCreatedResponse({ description: 'Team assigned successfully' })
+@ApiBadRequestResponse({ description: 'Invalid job ID or team ID' })
+@ApiUnauthorizedResponse({ description: 'Unauthorized - JWT required' })
+@ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
+@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+assignTeam(@Body() dto: AssignTeamDto) {
+  return this.assignmentsService.assignTeamToJob(dto);
+}
+
+@UseGuards(AuthGuardWithRoles, RateLimitGuard)
+@Roles(UserRole.ADMIN)
+@Post('create-and-assign')
+@ApiBearerAuth('JWT-auth')
+@ApiOperation({ 
+  summary: 'Create and assign a new team', 
+  description: 'Admin creates a new team and assigns it directly to a job.' 
+})
+@ApiCreatedResponse({ description: 'Team created and assigned successfully' })
+@ApiBadRequestResponse({ description: 'Invalid input data or job ID' })
+@ApiUnauthorizedResponse({ description: 'Unauthorized - JWT required' })
+@ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
+@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+createAndAssign(@Body() dto: CreateTeamAndAssignDto) {
+  return this.assignmentsService.createTeamAndAssign(dto);
+}
+
+@UseGuards(AuthGuardWithRoles, RateLimitGuard)
+@Roles(UserRole.ADMIN)
+@Patch(':id/status')
+@ApiBearerAuth('JWT-auth')
+@ApiOperation({ summary: 'Update team assignment status', description: 'Admin updates the status of a team assignment.' })
+@ApiOkResponse({ description: 'Status updated successfully', type: SuccessResponse })
+@ApiNotFoundResponse({ description: 'Team assignment not found' })
+@ApiBadRequestResponse({ description: 'Invalid status or input' })
+@ApiUnauthorizedResponse({ description: 'Unauthorized - JWT required' })
+@ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
+@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+updateTeamAssignmentStatus(@Param('id') id: string, @Body() dto: UpdateTeamAssignmentStatusDto) {
+  return this.assignmentsService.updateTeamAssignmentStatus({ ...dto, id });
+}
+
+@UseGuards(AuthGuardWithRoles, RateLimitGuard)
+@Roles(UserRole.ADMIN)
+@Get('job/:jobId')
+@ApiBearerAuth('JWT-auth')
+@ApiOperation({ summary: 'Get team assignments for a job', description: 'Retrieve all team assignments linked to a job.' })
+@ApiOkResponse({ description: 'Team assignments retrieved successfully' })
+@ApiBadRequestResponse({ description: 'Invalid job ID' })
+@ApiUnauthorizedResponse({ description: 'Unauthorized - JWT required' })
+@ApiForbiddenResponse({ description: 'Forbidden - Admin role required' })
+@ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+getTeamAssignments(@Param('jobId') jobId: string) {
+  return this.assignmentsService.getTeamAssignments(jobId);
 }
 
 }
