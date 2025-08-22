@@ -4,6 +4,11 @@ import { CreateJobAssignmentDto } from './dto/create-job-assignment.dto';
 import { UpdateJobAssignmentDto } from './dto/update-job-assignment.dto';
 import { AssignmentStatus } from '@prisma/client';
 import  { DeveloperSuggestionDto } from './dto/developer-suggestion.dto';
+import { CreateTeamDto } from './dto/create-team.dto';
+import { AssignTeamDto } from './dto/assign-team.dto';
+import { CreateTeamAndAssignDto } from './dto/create-assign-team.dto';
+import { UpdateTeamAssignmentStatusDto } from './dto/update-team-assignment.dto';
+
 @Injectable()
 export class JobAssignmentService {
   constructor(private prisma: PrismaService) {}
@@ -129,4 +134,88 @@ async suggestDevelopers(jobId: string): Promise<DeveloperSuggestionDto[]> {
   }));
 }
 
+//team
+async createTeam(dto: CreateTeamDto) {
+    const developers = await this.prisma.user.findMany({
+      where: { id: { in: dto.developerIds }, role: 'DEVELOPER' },
+    });
+
+    if (developers.length !== dto.developerIds.length) {
+      throw new HttpException('Some developers not found or not valid', HttpStatus.BAD_REQUEST);
+    }
+
+    return this.prisma.team.create({
+      data: {
+        name: dto.name,
+        description: dto.description,
+        members: {
+          create: developers.map((dev) => ({
+            userId: dev.id,
+            role: 'MEMBER',
+          })),
+        },
+      },
+      include: { members: { include: { user: true } } },
+    });
+  }
+
+async assignTeamToJob(dto: AssignTeamDto) {
+  const { jobId, teamId, assignedBy, notes } = dto;
+
+  const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) {
+    throw new HttpException('Job not found', HttpStatus.NOT_FOUND);
+  }
+
+  const team = await this.prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) {
+    throw new HttpException('Team not found', HttpStatus.NOT_FOUND);
+  }
+
+  return this.prisma.teamAssignment.create({
+    data: {
+      jobId,
+      teamId,
+      assignedBy,
+      notes: notes || null,
+    },
+    include: {
+      team: { include: { members: { include: { user: true } } } },
+      job: true,
+    },
+  });
+}
+
+async createTeamAndAssign(dto: CreateTeamAndAssignDto) {
+  const team = await this.createTeam(dto.team);
+
+  return this.assignTeamToJob({
+    jobId: dto.jobId,
+    teamId: team.id,
+    assignedBy: dto.assignedBy,
+    notes: dto.notes,
+  });
+}
+
+
+  async updateTeamAssignmentStatus(dto: UpdateTeamAssignmentStatusDto) {
+    const assignment = await this.prisma.teamAssignment.findUnique({
+      where: { id: dto.id },
+    });
+    if (!assignment) {
+      throw new HttpException('Team assignment not found', HttpStatus.NOT_FOUND);
+    }
+
+    return this.prisma.teamAssignment.update({
+      where: { id: dto.id },
+      data: { status: dto.status },
+    });
+  }
+
+  async getTeamAssignments(jobId: string) {
+    return this.prisma.teamAssignment.findMany({
+      where: { jobId },
+      include: { team: { include: { members: { include: { user: true } } } } },
+    });
+  }
 }
