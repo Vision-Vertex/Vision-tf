@@ -52,6 +52,13 @@ model User {
   assignerAssignments  JobAssignment[] @relation("AssignerAssignments")
   teamMemberships   TeamMember[]      
   teamAssignments   TeamAssignment[]
+  
+  // Budget-related relations
+  budgetsCreated           Budget[]             @relation("BudgetCreator")
+  budgetsApproved          Budget[]             @relation("BudgetApprover")
+  milestonesCompleted       Milestone[]          @relation("MilestoneCompleter")
+  paymentsProcessed         Payment[]            @relation("PaymentProcessor")
+  exchangeRatesCreated      ExchangeRate[]       @relation("ExchangeRateCreator")
 }
 
 
@@ -299,6 +306,11 @@ model Job {
   jobEvents         JobEvent[]
   jobHistory        JobStatusHistory[]
   assignments     JobAssignment[]
+  teamAssignments   TeamAssignment[]
+  
+  // Budget relation (new)
+  budgetRecord      Budget?
+  
   @@index([clientId])
   @@index([status])
   @@index([priority])
@@ -310,7 +322,6 @@ model Job {
   @@index([publishedAt])
   @@index([status, visibility])
   @@index([clientId, status])
-  teamAssignments   TeamAssignment[]
 }
 
 model JobEvent {
@@ -592,3 +603,206 @@ enum TeamRole {
   MEMBER
   REVIEWER
 }
+
+// ===== BUDGET SYSTEM SCHEMA ADDITIONS =====
+
+/// Budget Management System
+model Budget {
+  id                String           @id @default(uuid())
+  jobId             String           @unique // One budget per job
+  type              BudgetType
+  amount            Decimal          @db.Decimal(10, 2)
+  currency          String           @default("USD")
+  estimatedHours    Int?
+  notes             String?
+  status            BudgetStatus     @default(DRAFT)
+  
+  // Audit fields
+  createdBy         String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  approvedAt        DateTime?
+  approvedBy        String?
+  
+  // Relations
+  job               Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  creator           User             @relation("BudgetCreator", fields: [createdBy], references: [id])
+  approver          User?            @relation("BudgetApprover", fields: [approvedBy], references: [id])
+  milestones        Milestone[]
+  payments          Payment[]
+  
+  @@index([jobId])
+  @@index([type])
+  @@index([status])
+  @@index([createdBy])
+  @@index([createdAt])
+}
+
+/// Milestone Management
+model Milestone {
+  id                String           @id @default(uuid())
+  budgetId          String
+  name              String
+  description       String?
+  amount            Decimal          @db.Decimal(10, 2)
+  percentage        Decimal          @db.Decimal(5, 2) // Percentage of total budget
+  status            MilestoneStatus  @default(PENDING)
+  dueDate           DateTime?
+  completedAt       DateTime?
+  completedBy       String?
+  
+  // Milestone-specific fields
+  deliverables      String[]         @default([])
+  acceptanceCriteria String?
+  notes             String?
+  
+  // Audit fields
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  budget            Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  completer         User?            @relation("MilestoneCompleter", fields: [completedBy], references: [id])
+  payments          Payment[]
+  
+  @@index([budgetId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([completedAt])
+}
+
+/// Payment Processing
+model Payment {
+  id                String           @id @default(uuid())
+  budgetId          String
+  milestoneId       String?
+  amount            Decimal          @db.Decimal(10, 2)
+  currency          String
+  paymentType       PaymentType
+  status            PaymentStatus    @default(PENDING)
+  
+  // Payment details
+  reference         String?          // External payment reference
+  description       String?
+  notes             String?
+  
+  // Processing fields
+  processedAt       DateTime?
+  processedBy       String?
+  failureReason     String?
+  
+  // Audit fields
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  budget            Budget           @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  milestone         Milestone?       @relation(fields: [milestoneId], references: [id])
+  processor         User?            @relation("PaymentProcessor", fields: [processedBy], references: [id])
+  
+  @@index([budgetId])
+  @@index([milestoneId])
+  @@index([status])
+  @@index([paymentType])
+  @@index([createdAt])
+  @@index([reference])
+}
+
+/// Currency and Exchange Rate Management
+model Currency {
+  code              String           @id // ISO 4217 currency code (USD, EUR, etc.)
+  name              String           // Full currency name
+  symbol            String           // Currency symbol ($, €, etc.)
+  isActive          Boolean          @default(true)
+  isBase            Boolean          @default(false) // Is this the base currency (USD)
+  decimalPlaces     Int              @default(2)
+  
+  // Metadata
+  description       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  exchangeRates     ExchangeRate[]  @relation("FromCurrency")
+  exchangeRatesTo   ExchangeRate[]  @relation("ToCurrency")
+  
+  @@index([isActive])
+  @@index([isBase])
+}
+
+/// Exchange Rate Management
+model ExchangeRate {
+  id                String           @id @default(uuid())
+  fromCurrency      String
+  toCurrency        String
+  rate              Decimal          @db.Decimal(15, 6)
+  effectiveDate     DateTime         @default(now())
+  expiryDate        DateTime?
+  source            String           @default("MANUAL") // MANUAL, API, SYSTEM
+  isActive          Boolean          @default(true)
+  
+  // Metadata
+  notes             String?
+  createdBy         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  fromCurrencyRef   Currency         @relation("FromCurrency", fields: [fromCurrency], references: [code])
+  toCurrencyRef     Currency         @relation("ToCurrency", fields: [toCurrency], references: [code])
+  creator           User?            @relation("ExchangeRateCreator", fields: [createdBy], references: [id])
+  
+  @@unique([fromCurrency, toCurrency, effectiveDate])
+  @@index([fromCurrency])
+  @@index([toCurrency])
+  @@index([effectiveDate])
+  @@index([isActive])
+  @@index([source])
+}
+
+// ===== ENUMS FOR BUDGET SYSTEM =====
+
+enum BudgetType {
+  FIXED
+  HOURLY
+  MILESTONE
+  HYBRID
+}
+
+enum BudgetStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  UNDER_REVIEW
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum PaymentType {
+  ADVANCE
+  MILESTONE
+  COMPLETION
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+// ===== RELATION UPDATES FOR EXISTING MODELS =====

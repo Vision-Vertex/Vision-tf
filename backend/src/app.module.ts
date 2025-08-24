@@ -15,6 +15,7 @@ import { SkillsProfileModule } from './profile/skills-profile/skills-profile.mod
 import { AvailabilityProfileModule } from './profile/availability-profile/availability-profile.module';
 import { AdminMgmtModule } from './profile/admin-mgmt/admin-mgmt.module';
 import { JobAssignmentModule } from './job-assignment/job-assignment.module';
+import { JobModule } from './job/job.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { JobAssignmentModule } from './job-assignment/job-assignment.module';
     AvailabilityProfileModule,
     AdminMgmtModule,
     JobAssignmentModule,
+    JobModule,
   ],
   controllers: [AppController, PortfolioController],
   providers: [AppService, PortfolioService],

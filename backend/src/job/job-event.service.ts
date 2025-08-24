@@ -170,7 +170,7 @@ export class JobEventService {
 
 
   private async emitToSubscribers(eventData: JobEventData): Promise<void> {
-    // For now, just log that we would emit to subscribers
+    
     this.logger.log(
       `Would emit event ${eventData.eventType} to subscribers for job ${eventData.jobId}`,
     );
