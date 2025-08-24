@@ -52,6 +52,8 @@ model User {
   assignerAssignments  JobAssignment[] @relation("AssignerAssignments")
   teamMemberships   TeamMember[]      
   teamAssignments   TeamAssignment[]
+  assignmentStatusChanges AssignmentStatusHistory[]
+  teamAssignmentStatusChanges TeamAssignmentStatusHistory[]
 }
 
 
@@ -539,6 +541,9 @@ model JobAssignment {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Status history relation
+  statusHistory   AssignmentStatusHistory[]
 }
 
 enum AssignmentStatus {
@@ -585,10 +590,58 @@ model TeamAssignment {
   job        Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
   team       Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
   assignedByUser User @relation(fields: [assignedBy], references: [id], onDelete: Cascade)
+
+  // Status history relation
+  statusHistory   TeamAssignmentStatusHistory[]
 }
 
 enum TeamRole {
   LEAD
   MEMBER
   REVIEWER
+}
+
+// Status History Models for Audit Trail
+model AssignmentStatusHistory {
+  id                String           @id @default(uuid())
+  assignmentId      String           // Reference to JobAssignment
+  previousStatus    AssignmentStatus?
+  newStatus         AssignmentStatus
+  changedBy         String           // User ID who made the change
+  changedAt         DateTime         @default(now())
+  reason            String?          // Optional reason for the change
+  notes             String?          // Additional notes
+  ipAddress         String?          // IP address of the user
+  userAgent         String?          // User agent/browser info
+  metadata          Json?            // Additional metadata (e.g., automation trigger, bulk update, etc.)
+
+  // Relations
+  assignment        JobAssignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  changedByUser     User             @relation(fields: [changedBy], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([changedAt])
+  @@index([changedBy])
+}
+
+model TeamAssignmentStatusHistory {
+  id                String           @id @default(uuid())
+  teamAssignmentId  String           // Reference to TeamAssignment
+  previousStatus    AssignmentStatus?
+  newStatus         AssignmentStatus
+  changedBy         String           // User ID who made the change
+  changedAt         DateTime         @default(now())
+  reason            String?          // Optional reason for the change
+  notes             String?          // Additional notes
+  ipAddress         String?          // IP address of the user
+  userAgent         String?          // User agent/browser info
+  metadata          Json?            // Additional metadata
+
+  // Relations
+  teamAssignment    TeamAssignment   @relation(fields: [teamAssignmentId], references: [id], onDelete: Cascade)
+  changedByUser     User             @relation(fields: [changedBy], references: [id], onDelete: Cascade)
+
+  @@index([teamAssignmentId])
+  @@index([changedAt])
+  @@index([changedBy])
 }
