@@ -20,9 +20,8 @@ export class CreateJobAssignmentDto {
   @IsNotEmpty()
   assignmentType: string;
 
-  @ApiProperty({ enum: AssignmentStatus, description: 'Assignment status', example: AssignmentStatus.PENDING })
-  @IsEnum(AssignmentStatus)
-  status: AssignmentStatus;
+  // Status is automatically set to PENDING when creating a new assignment
+  // No need to include it in the DTO
 
   @ApiPropertyOptional({ description: 'Notes for the assignment', example: 'Urgent assignment' })
   @IsOptional()
