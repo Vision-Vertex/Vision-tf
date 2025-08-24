@@ -133,92 +133,239 @@ export class StatusHistoryService {
 
 
   /**
-   * Get all status history with filters
+   * Get all status history with detailed assignment information
    */
-  async getAllStatusHistory(query: StatusHistoryQueryDto) {
+  async getAllStatusHistory(query: StatusHistoryQueryDto): Promise<StatusHistoryResponseDto> {
     try {
-      const page = Number(query.page) || 1;
-      const limit = Number(query.limit) || 20;
+      const page = query.page || 1;
+      const limit = query.limit || 20;
       const skip = (page - 1) * limit;
 
-      // Build where conditions for assignment history
-      const assignmentWhereConditions: any = {};
+      let assignments: Array<{
+        id: string;
+        notes: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        jobId: string;
+        developerId: string;
+        status: AssignmentStatus;
+        job: {
+          id: string;
+          title: string;
+        };
+        developer: {
+          id: string;
+          firstname: string;
+          lastname: string;
+        };
+      }> = [];
+      let totalAssignments = 0;
+
+      // Filter by specific assignment ID
       if (query.assignmentId) {
-        assignmentWhereConditions.assignmentId = query.assignmentId;
-      }
-      if (query.changedBy) {
-        assignmentWhereConditions.changedBy = query.changedBy;
-      }
-      if (query.status) {
-        assignmentWhereConditions.newStatus = query.status;
-      }
-
-      // Build where conditions for team assignment history
-      const teamAssignmentWhereConditions: any = {};
-      if (query.teamAssignmentId) {
-        teamAssignmentWhereConditions.teamAssignmentId = query.teamAssignmentId;
-      }
-      if (query.changedBy) {
-        teamAssignmentWhereConditions.changedBy = query.changedBy;
-      }
-      if (query.status) {
-        teamAssignmentWhereConditions.newStatus = query.status;
-      }
-
-      // Get both types of history (without pagination first)
-      const [assignmentHistory, teamAssignmentHistory, assignmentTotal, teamAssignmentTotal] = await Promise.all([
-        this.prisma.assignmentStatusHistory.findMany({
-          where: assignmentWhereConditions,
+        const assignment = await this.prisma.jobAssignment.findUnique({
+          where: { id: query.assignmentId },
           include: {
-            changedByUser: {
+            job: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            developer: {
               select: {
                 id: true,
                 firstname: true,
                 lastname: true,
-                username: true,
-                email: true,
               },
             },
           },
-          orderBy: { changedAt: 'desc' },
-        }),
-        this.prisma.teamAssignmentStatusHistory.findMany({
-          where: teamAssignmentWhereConditions,
+        });
+
+        if (assignment) {
+          assignments = [assignment];
+          totalAssignments = 1;
+        }
+      }
+      // Filter by team assignment ID
+      else if (query.teamAssignmentId) {
+        const teamAssignment = await this.prisma.teamAssignment.findUnique({
+          where: { id: query.teamAssignmentId },
           include: {
-            changedByUser: {
+            team: {
+              include: {
+                members: {
+                  select: {
+                    id: true,
+                  },
+                },
+              },
+            },
+            job: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        });
+
+        if (teamAssignment) {
+          // For team assignments, we'll return the team assignment info
+          // but we need to find the corresponding job assignment if it exists
+          const jobAssignment = await this.prisma.jobAssignment.findFirst({
+            where: { jobId: teamAssignment.jobId },
+            include: {
+              job: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+              developer: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                },
+              },
+            },
+          });
+
+          if (jobAssignment) {
+            assignments = [jobAssignment];
+            totalAssignments = 1;
+          }
+        }
+      }
+      // No specific filter - get all assignments with pagination
+      else {
+        assignments = await this.prisma.jobAssignment.findMany({
+          skip,
+          take: limit,
+          include: {
+            job: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            developer: {
               select: {
                 id: true,
                 firstname: true,
                 lastname: true,
-                username: true,
-                email: true,
               },
             },
           },
-          orderBy: { changedAt: 'desc' },
-        }),
-        this.prisma.assignmentStatusHistory.count({ where: assignmentWhereConditions }),
-        this.prisma.teamAssignmentStatusHistory.count({ where: teamAssignmentWhereConditions }),
-      ]);
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
 
-      // Combine and sort by date
-      const combinedHistory = [
-        ...assignmentHistory.map(h => ({ ...h, type: 'assignment' as const })),
-        ...teamAssignmentHistory.map(h => ({ ...h, type: 'teamAssignment' as const }))
-      ].sort((a, b) => new Date(b.changedAt).getTime() - new Date(a.changedAt).getTime());
+        totalAssignments = await this.prisma.jobAssignment.count();
+      }
 
-      const total = assignmentTotal + teamAssignmentTotal;
+      // Get status history for each assignment
+      const assignmentsWithHistory = await Promise.all(
+        assignments.map(async (assignment) => {
+          // Get status history for this assignment
+          const statusHistory = await this.prisma.assignmentStatusHistory.findMany({
+            where: {
+              assignmentId: assignment.id,
+            },
+            include: {
+              changedByUser: {
+                select: {
+                  id: true,
+                  firstname: true,
+                  lastname: true,
+                  username: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: {
+              changedAt: 'asc',
+            },
+          });
 
-      // Apply pagination to combined results
-      const paginatedHistory = combinedHistory.slice(skip, skip + limit);
+          // Get team assignments for this job (only if filtering by team assignment or no specific filter)
+          let transformedTeamAssignments: Array<{
+            id: string;
+            teamName: string;
+            teamId: string;
+            status: AssignmentStatus;
+            memberCount: number;
+          }> = [];
+
+          if (query.teamAssignmentId || (!query.assignmentId && !query.teamAssignmentId)) {
+            const teamAssignments = await this.prisma.teamAssignment.findMany({
+              where: {
+                jobId: assignment.jobId,
+              },
+              include: {
+                team: {
+                  include: {
+                    members: {
+                      select: {
+                        id: true,
+                      },
+                    },
+                  },
+                },
+              },
+            });
+
+            // Transform team assignments to match our DTO format
+            transformedTeamAssignments = teamAssignments.map((teamAssignment) => ({
+              id: teamAssignment.id,
+              teamName: teamAssignment.team.name,
+              teamId: teamAssignment.team.id,
+              status: teamAssignment.status,
+              memberCount: teamAssignment.team.members.length,
+            }));
+          }
+
+          // Transform assignment to match our DTO format
+          const assignmentDetails = {
+            id: assignment.id,
+            jobTitle: assignment.job.title,
+            jobId: assignment.job.id,
+            developerName: `${assignment.developer.firstname} ${assignment.developer.lastname}`,
+            developerId: assignment.developer.id,
+            currentStatus: assignment.status,
+            createdAt: assignment.createdAt,
+            updatedAt: assignment.updatedAt,
+          };
+
+          // Transform status history to match our DTO format
+          const transformedStatusHistory = statusHistory.map((history) => ({
+            id: history.id,
+            previousStatus: history.previousStatus || undefined,
+            newStatus: history.newStatus,
+            changedAt: history.changedAt,
+            reason: history.reason || undefined,
+            changedByUser: history.changedByUser,
+          }));
+
+          return {
+            assignment: assignmentDetails,
+            statusHistory: transformedStatusHistory,
+            teamAssignments: transformedTeamAssignments,
+          };
+        })
+      );
 
       return {
-        data: paginatedHistory,
+        totalAssignments,
+        assignments: assignmentsWithHistory,
         pagination: {
           page,
           limit,
-          total,
-          totalPages: Math.ceil(total / limit),
+          totalPages: Math.ceil(totalAssignments / limit),
+          hasNext: page < Math.ceil(totalAssignments / limit),
+          hasPrev: page > 1,
         },
       };
     } catch (error) {
@@ -227,55 +374,4 @@ export class StatusHistoryService {
     }
   }
 
-  /**
-   * Get status change statistics
-   */
-  async getStatusChangeStats(query?: {
-    assignmentId?: string;
-    teamAssignmentId?: string;
-  }) {
-    try {
-      // Build separate where conditions for each table
-      const assignmentWhereConditions: any = {};
-      const teamAssignmentWhereConditions: any = {};
-      
-      if (query?.assignmentId) {
-        assignmentWhereConditions.assignmentId = query.assignmentId;
-      }
-      if (query?.teamAssignmentId) {
-        teamAssignmentWhereConditions.teamAssignmentId = query.teamAssignmentId;
-      }
-
-      const [assignmentStats, teamAssignmentStats] = await Promise.all([
-        this.prisma.assignmentStatusHistory.groupBy({
-          by: ['newStatus'],
-          where: assignmentWhereConditions,
-          _count: { newStatus: true },
-        }),
-        this.prisma.teamAssignmentStatusHistory.groupBy({
-          by: ['newStatus'],
-          where: teamAssignmentWhereConditions,
-          _count: { newStatus: true },
-        }),
-      ]);
-
-      // Combine stats
-      const combinedStats = new Map<string, number>();
-      
-      assignmentStats.forEach(stat => {
-        const current = combinedStats.get(stat.newStatus) || 0;
-        combinedStats.set(stat.newStatus, current + stat._count.newStatus);
-      });
-      
-      teamAssignmentStats.forEach(stat => {
-        const current = combinedStats.get(stat.newStatus) || 0;
-        combinedStats.set(stat.newStatus, current + stat._count.newStatus);
-      });
-
-      return Object.fromEntries(combinedStats);
-    } catch (error) {
-      this.logger.error(`Failed to get status change stats: ${error.message}`, error.stack);
-      throw error;
-    }
-  }
 }
