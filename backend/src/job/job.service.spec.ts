@@ -8,8 +8,8 @@ import { JobStatus, JobPriority, ProjectType, WorkLocation, JobVisibility } from
 
 describe('JobService', () => {
   let service: JobService;
-  let prismaService: jest.Mocked<PrismaService>;
-  let jobEventService: jest.Mocked<JobEventService>;
+  let prismaService: any;
+  let jobEventService: any;
 
   const mockUserId = 'user-123';
   const mockJobId = 'job-123';
@@ -91,19 +91,19 @@ describe('JobService', () => {
 
   const mockPrismaService = {
     job: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+      create: jest.fn().mockReturnValue({}),
+      findMany: jest.fn().mockReturnValue({}),
+      findUnique: jest.fn().mockReturnValue({}),
+      update: jest.fn().mockReturnValue({}),
+      delete: jest.fn().mockReturnValue({}),
     },
   };
 
   const mockJobEventService = {
-    jobCreated: jest.fn(),
-    jobUpdated: jest.fn(),
-    jobDeleted: jest.fn(),
-    jobStatusChanged: jest.fn(),
+    jobCreated: jest.fn().mockReturnValue({}),
+    jobUpdated: jest.fn().mockReturnValue({}),
+    jobDeleted: jest.fn().mockReturnValue({}),
+    jobStatusChanged: jest.fn().mockReturnValue({}),
   };
 
   beforeEach(async () => {
@@ -338,9 +338,8 @@ describe('JobService', () => {
       const existingJob = { ...mockJob, status: JobStatus.DRAFT };
       const updatedJob = { ...mockJob, title: 'Updated Test Job', priority: JobPriority.HIGH };
 
-      prismaService.job.findUnique
-        .mockResolvedValueOnce(existingJob) // First call for existing job check
-        .mockResolvedValueOnce(updatedJob); // Second call for update
+      prismaService.job.findUnique.mockResolvedValue(existingJob);
+      prismaService.job.update.mockResolvedValue(updatedJob);
       
       jobEventService.jobUpdated.mockResolvedValue(undefined);
 
@@ -389,9 +388,8 @@ describe('JobService', () => {
       const existingJob = { ...mockJob };
       const updatedJob = { ...mockJob, ...complexUpdateDto };
 
-      prismaService.job.findUnique
-        .mockResolvedValueOnce(existingJob)
-        .mockResolvedValueOnce(updatedJob);
+      prismaService.job.findUnique.mockResolvedValue(existingJob);
+      prismaService.job.update.mockResolvedValue(updatedJob);
       
       jobEventService.jobUpdated.mockResolvedValue(undefined);
 
@@ -444,9 +442,8 @@ describe('JobService', () => {
       const existingJob = { ...mockJob };
       const updatedJob = { ...mockJob, ...mockUpdateJobDto };
 
-      prismaService.job.findUnique
-        .mockResolvedValueOnce(existingJob)
-        .mockResolvedValueOnce(updatedJob);
+      prismaService.job.findUnique.mockResolvedValue(existingJob);
+      prismaService.job.update.mockResolvedValue(updatedJob);
       
       jobEventService.jobUpdated.mockRejectedValue(new Error('Event service failed'));
 
@@ -520,9 +517,8 @@ describe('JobService', () => {
       const newStatus = JobStatus.IN_PROGRESS;
       const reason = 'Development started';
 
-      prismaService.job.findUnique
-        .mockResolvedValueOnce(existingJob)
-        .mockResolvedValueOnce(updatedJob);
+      prismaService.job.findUnique.mockResolvedValue(existingJob);
+      prismaService.job.update.mockResolvedValue(updatedJob);
       
       jobEventService.jobStatusChanged.mockResolvedValue(undefined);
 
@@ -566,9 +562,8 @@ describe('JobService', () => {
       const updatedJob = { ...mockJob, status: JobStatus.COMPLETED };
       const newStatus = JobStatus.COMPLETED;
 
-      prismaService.job.findUnique
-        .mockResolvedValueOnce(existingJob)
-        .mockResolvedValueOnce(updatedJob);
+      prismaService.job.findUnique.mockResolvedValue(existingJob);
+      prismaService.job.update.mockResolvedValue(updatedJob);
       
       jobEventService.jobStatusChanged.mockResolvedValue(undefined);
 
@@ -609,9 +604,8 @@ describe('JobService', () => {
       const updatedJob = { ...mockJob, status: JobStatus.IN_PROGRESS };
       const newStatus = JobStatus.IN_PROGRESS;
 
-      prismaService.job.findUnique
-        .mockResolvedValueOnce(existingJob)
-        .mockResolvedValueOnce(updatedJob);
+      prismaService.job.findUnique.mockResolvedValue(existingJob);
+      prismaService.job.update.mockResolvedValue(updatedJob);
       
       jobEventService.jobStatusChanged.mockRejectedValue(new Error('Event service failed'));
 

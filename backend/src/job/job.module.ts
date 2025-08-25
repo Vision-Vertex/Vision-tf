@@ -7,9 +7,10 @@ import { JobEventService } from './job-event.service';
 import { JobEventHandlerService } from './job-event-handler.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { BudgetModule } from './budget/budget.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, BudgetModule],
   controllers: [JobController, JobEventController],
   providers: [
     JobService,
@@ -21,6 +22,7 @@ import { AuthModule } from '../auth/auth.module';
     JobService,
     JobEventService,
     JobEventHandlerService,
+    BudgetModule,
   ],
 })
 export class JobModule {}
