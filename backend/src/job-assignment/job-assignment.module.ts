@@ -3,27 +3,27 @@ import { JobAssignmentService } from './job-assignment.service';
 import { JobAssignmentController } from './job-assignment.controller';
 import { StatusHistoryService } from './status-history.service';
 import { StatusHistoryController } from './status-history.controller';
-import { AssignmentScoringService } from './assignment-scoring.service';
-import { AssignmentScoringController } from './assignment-scoring.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from 'src/auth/auth.module';
+import { ScoringService } from './scoring.service';
+import { ScoringController } from './scoring.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [
     JobAssignmentController, 
     StatusHistoryController, 
-    AssignmentScoringController
+    ScoringController
   ],
   providers: [
     JobAssignmentService, 
     StatusHistoryService, 
-    AssignmentScoringService
+    ScoringService
   ],
   exports: [
     JobAssignmentService, 
     StatusHistoryService, 
-    AssignmentScoringService
+    ScoringService
   ],
 })
 export class JobAssignmentModule {}

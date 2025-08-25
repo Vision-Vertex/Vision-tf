@@ -6,7 +6,7 @@ import { UserRole } from '@prisma/client';
 import { StatusHistoryService } from './status-history.service';
 import { StatusHistoryQueryDto, StatusHistoryResponseDto } from './dto/status-history.dto';
 
-@ApiTags('Status History & Audit Trail')
+@ApiTags('Developer and Team Assignment')
 @Controller('status-history')
 @UseGuards(AuthGuardWithRoles)
 @ApiBearerAuth('JWT-auth')

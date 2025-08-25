@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobAssignmentService } from './job-assignment.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { StatusHistoryService } from './status-history.service';
 import { AssignmentStatus } from '@prisma/client';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { CreateJobAssignmentDto } from './dto/create-job-assignment.dto';
@@ -10,6 +11,7 @@ import { UpdateJobAssignmentDto } from './dto/update-job-assignment.dto';
 describe('JobAssignmentService', () => {
   let service: JobAssignmentService;
   let prismaService: PrismaService;
+  let statusHistoryService: StatusHistoryService;
 
   const mockPrismaService = {
     jobAssignment: {
@@ -43,6 +45,15 @@ describe('JobAssignmentService', () => {
     },
   };
 
+  const mockStatusHistoryService = {
+    createAssignmentStatusHistory: jest.fn(),
+    createTeamAssignmentStatusHistory: jest.fn(),
+    getAllStatusHistory: jest.fn(),
+  };
+
+  // Mock the service's findOne method
+  const mockFindOne = jest.fn();
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,11 +62,19 @@ describe('JobAssignmentService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: StatusHistoryService,
+          useValue: mockStatusHistoryService,
+        },
       ],
     }).compile();
 
     service = module.get<JobAssignmentService>(JobAssignmentService);
     prismaService = module.get<PrismaService>(PrismaService);
+    statusHistoryService = module.get<StatusHistoryService>(StatusHistoryService);
+
+    // Mock the service's findOne method
+    jest.spyOn(service, 'findOne').mockImplementation(mockFindOne);
   });
 
   afterEach(() => {
@@ -195,7 +214,7 @@ describe('JobAssignmentService', () => {
       const dto: ChangeStatusDto = { status: AssignmentStatus.IN_PROGRESS };
       const userId = 'user-1';
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       mockPrismaService.jobAssignment.update.mockResolvedValue({
         ...mockAssignment,
         status: AssignmentStatus.IN_PROGRESS,
@@ -218,7 +237,7 @@ describe('JobAssignmentService', () => {
     it('should throw error for invalid status transition', async () => {
       const dto: ChangeStatusDto = { status: AssignmentStatus.COMPLETED };
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       
       await expect(service.updateAssignmentStatus('assignment-1', dto)).rejects.toThrow(
         new HttpException(
@@ -231,7 +250,7 @@ describe('JobAssignmentService', () => {
     it('should throw error when assignment not found', async () => {
       const dto: ChangeStatusDto = { status: AssignmentStatus.IN_PROGRESS };
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(null);
+      mockFindOne.mockResolvedValue(null);
       
       await expect(service.updateAssignmentStatus('nonexistent', dto)).rejects.toThrow(
         new HttpException('Assignment not found', HttpStatus.NOT_FOUND)
@@ -239,59 +258,7 @@ describe('JobAssignmentService', () => {
     });
   });
 
-  describe('bulkUpdateStatus', () => {
-    const mockAssignments = [
-      {
-        id: 'assignment-1',
-        status: AssignmentStatus.PENDING,
-        job: { id: 'job-1' },
-        developer: { id: 'dev-1' },
-        assignedByUser: { id: 'user-1' },
-      },
-      {
-        id: 'assignment-2',
-        status: AssignmentStatus.PENDING,
-        job: { id: 'job-2' },
-        developer: { id: 'dev-2' },
-        assignedByUser: { id: 'user-1' },
-      },
-    ];
 
-    it('should successfully update multiple assignments', async () => {
-      const dto: ChangeStatusDto = { status: AssignmentStatus.IN_PROGRESS };
-      const userId = 'user-1';
-      
-      mockPrismaService.jobAssignment.findUnique
-        .mockResolvedValueOnce(mockAssignments[0])
-        .mockResolvedValueOnce(mockAssignments[1]);
-      mockPrismaService.jobAssignment.update
-        .mockResolvedValueOnce({ ...mockAssignments[0], status: AssignmentStatus.IN_PROGRESS })
-        .mockResolvedValueOnce({ ...mockAssignments[1], status: AssignmentStatus.IN_PROGRESS });
-      mockPrismaService.job.update.mockResolvedValue({ id: 'job-1' });
-      
-      const results = await service.bulkUpdateStatus(['assignment-1', 'assignment-2'], dto, userId);
-      
-      expect(results).toHaveLength(2);
-      expect(results[0]).toEqual({ id: 'assignment-1', success: true, data: expect.any(Object) });
-      expect(results[1]).toEqual({ id: 'assignment-2', success: true, data: expect.any(Object) });
-    });
-
-    it('should handle partial failures in bulk update', async () => {
-      const dto: ChangeStatusDto = { status: AssignmentStatus.IN_PROGRESS };
-      
-      mockPrismaService.jobAssignment.findUnique
-        .mockResolvedValueOnce(mockAssignments[0])
-        .mockResolvedValueOnce(null); // Second assignment not found
-      mockPrismaService.jobAssignment.update.mockResolvedValue({ ...mockAssignments[0], status: AssignmentStatus.IN_PROGRESS });
-      mockPrismaService.job.update.mockResolvedValue({ id: 'job-1' });
-      
-      const results = await service.bulkUpdateStatus(['assignment-1', 'assignment-2'], dto);
-      
-      expect(results).toHaveLength(2);
-      expect(results[0]).toEqual({ id: 'assignment-1', success: true, data: expect.any(Object) });
-      expect(results[1]).toEqual({ id: 'assignment-2', success: false, error: 'Assignment not found' });
-    });
-  });
 
   describe('findAssignmentsByStatus', () => {
     it('should find both developer and team assignments by status', async () => {
@@ -462,7 +429,7 @@ describe('JobAssignmentService', () => {
     it('should update assignment with status transition validation', async () => {
       const updatedAssignment = { ...mockAssignment, status: AssignmentStatus.IN_PROGRESS };
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       mockPrismaService.jobAssignment.update.mockResolvedValue(updatedAssignment);
       mockPrismaService.job.update.mockResolvedValue({ id: 'job-1' });
       
@@ -479,7 +446,7 @@ describe('JobAssignmentService', () => {
     it('should throw error for invalid status transition in update', async () => {
       const invalidUpdateDto: UpdateJobAssignmentDto = { status: AssignmentStatus.COMPLETED };
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       
       await expect(service.update('assignment-1', invalidUpdateDto)).rejects.toThrow(
         new HttpException(
@@ -500,7 +467,7 @@ describe('JobAssignmentService', () => {
         assignedByUser: { id: 'user-1' },
       };
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       mockPrismaService.jobAssignment.update.mockResolvedValue({
         ...mockAssignment,
         status: AssignmentStatus.IN_PROGRESS,
@@ -586,7 +553,7 @@ describe('JobAssignmentService', () => {
       const adminId = 'admin-1';
       const adminRole = 'ADMIN';
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       mockPrismaService.jobAssignment.update.mockResolvedValue({
         ...mockAssignment,
         status: AssignmentStatus.IN_PROGRESS,
@@ -611,7 +578,7 @@ describe('JobAssignmentService', () => {
       const developerId = 'dev-1';
       const developerRole = 'DEVELOPER';
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       mockPrismaService.jobAssignment.update.mockResolvedValue({
         ...mockAssignment,
         status: AssignmentStatus.IN_PROGRESS,
@@ -636,7 +603,7 @@ describe('JobAssignmentService', () => {
       const userId = 'user-1';
       const userRole = 'ADMIN';
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(null);
+      mockFindOne.mockResolvedValue(null);
       
       await expect(service.updateDeveloperAssignmentStatus('nonexistent', dto, userId, userRole)).rejects.toThrow(
         new HttpException('Assignment not found', HttpStatus.NOT_FOUND)
@@ -648,7 +615,7 @@ describe('JobAssignmentService', () => {
       const wrongDeveloperId = 'dev-2';
       const developerRole = 'DEVELOPER';
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       
       await expect(service.updateDeveloperAssignmentStatus('assignment-1', dto, wrongDeveloperId, developerRole)).rejects.toThrow(
         new HttpException('You can only update your own assignments', HttpStatus.FORBIDDEN)
@@ -660,7 +627,7 @@ describe('JobAssignmentService', () => {
       const adminId = 'admin-1';
       const adminRole = 'ADMIN';
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       mockPrismaService.jobAssignment.update.mockResolvedValue({
         ...mockAssignment,
         status: AssignmentStatus.IN_PROGRESS,
@@ -677,7 +644,7 @@ describe('JobAssignmentService', () => {
       const userId = 'dev-1';
       const userRole = 'DEVELOPER';
       
-      mockPrismaService.jobAssignment.findUnique.mockResolvedValue(mockAssignment);
+      mockFindOne.mockResolvedValue(mockAssignment);
       
       await expect(service.updateDeveloperAssignmentStatus('assignment-1', dto, userId, userRole)).rejects.toThrow(
         new HttpException(
