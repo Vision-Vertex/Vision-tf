@@ -61,6 +61,11 @@ model User {
   milestonesCompleted       Milestone[]          @relation("MilestoneCompleter")
   paymentsProcessed         Payment[]            @relation("PaymentProcessor")
   exchangeRatesCreated      ExchangeRate[]       @relation("ExchangeRateCreator")
+  
+  // Scoring relations
+  developerPerformanceMetric DeveloperPerformanceMetric?
+  assignmentScores  AssignmentScore[]
+  scoringRuns       ScoringRun[] @relation("UserScoringRuns")
 }
 
 
@@ -312,6 +317,10 @@ model Job {
   
   // Budget relation (new)
   budgetRecord      Budget?
+  
+  // Scoring relations
+  scoringRuns      ScoringRun[]
+  assignmentScores AssignmentScore[]
   
   @@index([clientId])
   @@index([status])
@@ -612,7 +621,7 @@ enum TeamRole {
   REVIEWER
 }
 
-<<<<<<< HEAD
+
 // Status History Models for Audit Trail
 model AssignmentStatusHistory {
   id                String           @id @default(uuid())
@@ -657,7 +666,7 @@ model TeamAssignmentStatusHistory {
   @@index([changedAt])
   @@index([changedBy])
 }
-}
+
 
 // ===== BUDGET SYSTEM SCHEMA ADDITIONS =====
 
@@ -861,3 +870,82 @@ enum PaymentStatus {
 }
 
 // ===== RELATION UPDATES FOR EXISTING MODELS =====
+
+// ===== SCORING SYSTEM SCHEMA ADDITIONS =====
+
+enum ScoringAlgorithmType {
+  DEFAULT
+  LINEAR
+  CUSTOM
+}
+
+model ScoringConfig {
+  id                 String               @id @default(uuid())
+  name               String               // Configuration name
+  description        String?              // Optional description
+  algorithm          ScoringAlgorithmType @default(DEFAULT)
+  weights            Json                 // e.g. {"requiredSkills":0.45,"preferredSkills":0.15,"performance":0.2,"availability":0.1,"workload":0.1}
+  constraints        Json?                // e.g. {"minExperience":0,"maxActiveAssignments":5}
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  // Relations
+  scoringRuns        ScoringRun[]
+
+  @@index([isActive])
+}
+
+model DeveloperPerformanceMetric {
+  id                 String   @id @default(uuid())
+  developerId        String
+  // rolling aggregates (updated by cron or on assignment completion)
+  completedCount     Int      @default(0)
+  failedCount        Int      @default(0)
+  cancelledCount     Int      @default(0)
+  onTimeRate         Float    @default(0) // 0..1
+  avgCycleTimeHours  Float    @default(0) // avg actual hours
+  avgQualityRating   Float    @default(0) // 0..5 (if you later add rating)
+  lastUpdatedAt      DateTime @default(now())
+
+  developer          User     @relation(fields: [developerId], references: [id], onDelete: Cascade)
+
+  @@unique([developerId])
+  @@index([avgQualityRating, onTimeRate])
+}
+
+model ScoringRun {
+  id            String   @id @default(uuid())
+  jobId         String
+  triggeredBy   String?  // admin/user id
+  algorithm     ScoringAlgorithmType @default(DEFAULT)
+  configId      String?
+  createdAt     DateTime @default(now())
+
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  config        ScoringConfig? @relation(fields: [configId], references: [id])
+  triggeredByUser User?  @relation("UserScoringRuns", fields: [triggeredBy], references: [id])
+
+  scores        AssignmentScore[]
+
+  @@index([jobId, createdAt])
+}
+
+model AssignmentScore {
+  id               String   @id @default(uuid())
+  runId            String
+  jobId            String
+  developerId      String
+  totalScore       Float
+  breakdown        Json     // e.g. {"requiredSkills":0.36,"preferredSkills":0.12,"performance":0.18,"availability":0.08,"workload":0.06}
+  rank             Int
+  createdAt        DateTime @default(now())
+
+  run              ScoringRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  job              Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  developer        User       @relation(fields: [developerId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, totalScore])
+  @@index([developerId, createdAt])
+  @@unique([runId, developerId])
+}

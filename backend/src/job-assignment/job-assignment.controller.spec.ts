@@ -1,14 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JobAssignmentController } from './job-assignment.controller';
 import { JobAssignmentService } from './job-assignment.service';
+import { StatusHistoryService } from './status-history.service';
 import { CreateJobAssignmentDto } from './dto/create-job-assignment.dto';
 import { UpdateJobAssignmentDto } from './dto/update-job-assignment.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
-import { BulkStatusUpdateDto } from './dto/bulk-status-update.dto';
+
 import { CreateTeamDto } from './dto/create-team.dto';
 import { AssignTeamDto } from './dto/assign-team.dto';
 import { CreateTeamAndAssignDto } from './dto/create-assign-team.dto';
-import { UpdateTeamAssignmentStatusDto } from './dto/update-team-assignment.dto';
+
 import { AssignmentStatus, UserRole } from '@prisma/client';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { AuthGuardWithRoles } from '../auth/guards/auth.guard';
@@ -20,13 +21,19 @@ describe('JobAssignmentController', () => {
   let controller: JobAssignmentController;
   let service: JobAssignmentService;
 
+  const mockStatusHistoryService = {
+    createAssignmentStatusHistory: jest.fn(),
+    createTeamAssignmentStatusHistory: jest.fn(),
+    getAllStatusHistory: jest.fn(),
+  };
+
   const mockJobAssignmentService = {
     create: jest.fn(),
     findAll: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
     updateAssignmentStatus: jest.fn(),
-    bulkUpdateStatus: jest.fn(),
+
     findAssignmentsByStatus: jest.fn(),
     remove: jest.fn(),
     suggestDevelopers: jest.fn(),
@@ -36,6 +43,7 @@ describe('JobAssignmentController', () => {
     assignTeamToJob: jest.fn(),
     createTeamAndAssign: jest.fn(),
     updateTeamAssignmentStatus: jest.fn(),
+
     getTeamAssignments: jest.fn(),
     getAllTeamAssignments: jest.fn(),
     removeTeamAssignment: jest.fn(),
@@ -72,9 +80,12 @@ describe('JobAssignmentController', () => {
   const mockRequest = {
     user: {
       id: 'user-1',
+      userId: 'user-1',
       role: UserRole.ADMIN,
       email: 'admin@example.com'
-    }
+    },
+    ip: '192.168.1.1',
+    get: jest.fn().mockReturnValue('Mozilla/5.0'),
   };
 
   beforeEach(async () => {
@@ -84,6 +95,10 @@ describe('JobAssignmentController', () => {
         {
           provide: JobAssignmentService,
           useValue: mockJobAssignmentService,
+        },
+        {
+          provide: StatusHistoryService,
+          useValue: mockStatusHistoryService,
         },
         {
           provide: JwtService,
@@ -188,43 +203,7 @@ describe('JobAssignmentController', () => {
     });
   });
 
-  describe('updateStatus', () => {
-    const statusDto: ChangeStatusDto = { status: AssignmentStatus.IN_PROGRESS };
 
-    it('should update assignment status', async () => {
-      const expectedResult = { id: 'assignment-1', status: AssignmentStatus.IN_PROGRESS };
-      mockJobAssignmentService.updateAssignmentStatus.mockResolvedValue(expectedResult);
-
-      const result = await controller.updateStatus('assignment-1', statusDto, mockRequest as any);
-
-      expect(service.updateAssignmentStatus).toHaveBeenCalledWith('assignment-1', statusDto, 'user-1');
-      expect(result).toEqual(expectedResult);
-    });
-  });
-
-  describe('bulkUpdateStatus', () => {
-    const bulkDto: BulkStatusUpdateDto = {
-      assignmentIds: ['assignment-1', 'assignment-2'],
-      status: AssignmentStatus.IN_PROGRESS
-    };
-
-    it('should bulk update assignment statuses', async () => {
-      const expectedResult = [
-        { id: 'assignment-1', success: true },
-        { id: 'assignment-2', success: true }
-      ];
-      mockJobAssignmentService.bulkUpdateStatus.mockResolvedValue(expectedResult);
-
-      const result = await controller.bulkUpdateStatus(bulkDto, mockRequest as any);
-
-      expect(service.bulkUpdateStatus).toHaveBeenCalledWith(
-        bulkDto.assignmentIds,
-        { status: bulkDto.status },
-        'user-1'
-      );
-      expect(result).toEqual(expectedResult);
-    });
-  });
 
   describe('findAssignmentsByStatus', () => {
     it('should return assignments by status', async () => {
@@ -357,8 +336,8 @@ describe('JobAssignmentController', () => {
     });
   });
 
-  describe('updateTeamAssignmentStatus', () => {
-    const updateTeamStatusDto: UpdateTeamAssignmentStatusDto = {
+  describe('updateTeamStatus', () => {
+    const updateTeamStatusDto: ChangeStatusDto = {
       status: AssignmentStatus.IN_PROGRESS
     };
 
@@ -366,9 +345,16 @@ describe('JobAssignmentController', () => {
       const expectedResult = { id: 'team-assignment-1', status: AssignmentStatus.IN_PROGRESS };
       mockJobAssignmentService.updateTeamAssignmentStatus.mockResolvedValue(expectedResult);
 
-      const result = await controller.updateTeamAssignmentStatus('team-assignment-1', updateTeamStatusDto);
+      const result = await controller.updateTeamStatus('team-assignment-1', updateTeamStatusDto, mockRequest as any);
 
-      expect(service.updateTeamAssignmentStatus).toHaveBeenCalledWith('team-assignment-1', updateTeamStatusDto);
+      expect(service.updateTeamAssignmentStatus).toHaveBeenCalledWith('team-assignment-1', updateTeamStatusDto, 'user-1', {
+        ipAddress: '192.168.1.1',
+        userAgent: 'Mozilla/5.0',
+        metadata: {
+          endpoint: 'PATCH /assignments/team/:id/status',
+          timestamp: expect.any(String),
+        }
+      });
       expect(result).toEqual(expectedResult);
     });
   });
@@ -428,7 +414,14 @@ describe('JobAssignmentController', () => {
 
       const result = await controller.updateDeveloperStatus('assignment-1', statusDto, mockRequest as any);
 
-      expect(service.updateDeveloperAssignmentStatus).toHaveBeenCalledWith('assignment-1', statusDto, 'user-1', 'ADMIN');
+      expect(service.updateDeveloperAssignmentStatus).toHaveBeenCalledWith('assignment-1', statusDto, 'user-1', 'ADMIN', {
+        ipAddress: '192.168.1.1',
+        userAgent: 'Mozilla/5.0',
+        metadata: {
+          endpoint: 'PATCH /assignments/developer/:id/status',
+          timestamp: expect.any(String),
+        }
+      });
       expect(result).toEqual(expectedResult);
     });
   });
