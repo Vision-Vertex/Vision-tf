@@ -446,3 +446,107 @@ export interface RequiredFieldsResponse {
   userId: string;
 }
 
+// Search Types - Complete search functionality types
+export interface SearchQuery {
+  query: string;
+  page?: number;
+  limit?: number;
+  sortBy?: 'relevance' | 'experience' | 'hourlyRate' | 'createdAt' | 'updatedAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface SearchFilters {
+  role?: 'CLIENT' | 'DEVELOPER' | 'ADMIN';
+  skills?: string[];
+  minExperience?: number;
+  maxExperience?: number;
+  minHourlyRate?: number;
+  maxHourlyRate?: number;
+  isAvailable?: boolean;
+  timezone?: string;
+  location?: string;
+  workPreference?: 'remote' | 'onsite' | 'hybrid';
+  isEmailVerified?: boolean;
+  minProfileCompletion?: number;
+  createdAtFrom?: string;
+  createdAtTo?: string;
+}
+
+export interface SearchResultItem {
+  userId: string;
+  displayName: string;
+  role: 'CLIENT' | 'DEVELOPER' | 'ADMIN';
+  bio: string;
+  profilePictureUrl: string;
+  skills: string[];
+  experience: number;
+  hourlyRate: number;
+  isAvailable: boolean;
+  location: any;
+  profileCompletion: number;
+  relevanceScore: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SearchResponse {
+  results: SearchResultItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  query: string;
+  filters: SearchFilters;
+  executionTime: number;
+}
+
+export interface SearchHistoryItem {
+  id: string;
+  query: string;
+  filters: SearchFilters;
+  resultsCount: number;
+  timestamp: string;
+}
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  filters: SearchFilters;
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SearchPreferences {
+  defaultSortBy: 'relevance' | 'experience' | 'hourlyRate' | 'createdAt' | 'updatedAt';
+  defaultSortOrder: 'asc' | 'desc';
+  defaultLimit: number;
+  enableNotifications: boolean;
+  autoSaveHistory: boolean;
+  maxHistoryItems: number;
+}
+
+export interface SearchSuggestion {
+  type: 'skill' | 'location' | 'role' | 'query';
+  value: string;
+  count: number;
+  relevance: number;
+}
+
+export interface SearchStats {
+  totalSearches: number;
+  averageResultsPerSearch: number;
+  mostUsedFilters: Record<string, number>;
+  popularQueries: string[];
+  searchSuccessRate: number;
+}
+
+export interface SearchError {
+  type: 'validation' | 'network' | 'server' | 'rate_limit' | 'unauthorized';
+  message: string;
+  code?: string;
+  retryAfter?: number;
+  suggestions?: string[];
+}
+
