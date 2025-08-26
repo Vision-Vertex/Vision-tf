@@ -66,6 +66,12 @@ model User {
   developerPerformanceMetric DeveloperPerformanceMetric?
   assignmentScores  AssignmentScore[]
   scoringRuns       ScoringRun[] @relation("UserScoringRuns")
+
+  // Application relations
+  developerApplications    Application[]        @relation("DeveloperApplications")
+  applicationReviews       Application[]        @relation("ApplicationReviews")
+  applicationStatusChanges ApplicationStatusHistory[] @relation("ApplicationStatusChanges")
+  applicationEvents        ApplicationEvent[]   @relation("ApplicationEvents")
 }
 
 
@@ -321,6 +327,9 @@ model Job {
   // Scoring relations
   scoringRuns      ScoringRun[]
   assignmentScores AssignmentScore[]
+  
+  // Application relations
+  applications      Application[]
   
   @@index([clientId])
   @@index([status])
@@ -949,3 +958,138 @@ model AssignmentScore {
   @@index([developerId, createdAt])
   @@unique([runId, developerId])
 }
+
+// ===== VOLUNTEER APPLICATION SYSTEM SCHEMA =====
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  SHORTLISTED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum ApplicationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ApplicationEventType {
+  APPLICATION_CREATED
+  APPLICATION_UPDATED
+  APPLICATION_DELETED
+  STATUS_CHANGED
+  APPLICATION_VIEWED
+  APPLICATION_REVIEWED
+  APPLICATION_SHORTLISTED
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+  APPLICATION_WITHDRAWN
+  APPLICATION_EXPIRED
+}
+
+model Application {
+  id                String             @id @default(uuid())
+  jobId             String
+  developerId       String
+  status            ApplicationStatus  @default(PENDING)
+  priority          ApplicationPriority @default(MEDIUM)
+  
+  // Application content
+  coverLetter       String?            @db.Text
+  proposedRate      Decimal?           @db.Decimal(10, 2)
+  proposedCurrency  String?            @default("USD")
+  estimatedHours    Int?
+  availability      Json?              // Availability information
+  skills            Json?              // Skills array
+  portfolio         String?            // Portfolio URL
+  references        Json?              // References array
+  motivation        String?            @db.Text
+  relevantExperience String?           @db.Text
+  questions         Json?              // Questions for client
+  attachments       String[]           @default([]) // Attachment URLs
+  
+  // Status timestamps
+  appliedAt         DateTime           @default(now())
+  reviewedAt        DateTime?
+  shortlistedAt     DateTime?
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  withdrawnAt       DateTime?
+  expiredAt         DateTime?
+  
+  // Review information
+  reviewedBy        String?
+  reviewNotes       String?            @db.Text
+  
+  // Audit fields
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  version           Int                @default(1)
+  
+  // Relations
+  job               Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  developer         User               @relation("DeveloperApplications", fields: [developerId], references: [id], onDelete: Cascade)
+  reviewer          User?              @relation("ApplicationReviews", fields: [reviewedBy], references: [id])
+  statusHistory     ApplicationStatusHistory[]
+  events            ApplicationEvent[]
+  
+  @@unique([jobId, developerId])
+  @@index([jobId])
+  @@index([developerId])
+  @@index([status])
+  @@index([priority])
+  @@index([appliedAt])
+  @@index([reviewedAt])
+  @@index([reviewedBy])
+}
+
+model ApplicationStatusHistory {
+  id                String             @id @default(uuid())
+  applicationId     String
+  fromStatus        ApplicationStatus?
+  toStatus          ApplicationStatus
+  reason            String?
+  notes             String?            @db.Text
+  changedBy         String
+  changedAt         DateTime           @default(now())
+  ipAddress         String?
+  userAgent         String?
+  metadata          Json?
+  
+  // Relations
+  application       Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedByUser     User               @relation("ApplicationStatusChanges", fields: [changedBy], references: [id], onDelete: Cascade)
+  
+  @@index([applicationId])
+  @@index([changedAt])
+  @@index([changedBy])
+  @@index([toStatus])
+}
+
+model ApplicationEvent {
+  id                String             @id @default(uuid())
+  applicationId     String
+  eventType         ApplicationEventType
+  eventData         Json?
+  userId            String
+  ipAddress         String?
+  userAgent         String?
+  metadata          Json?
+  createdAt         DateTime           @default(now())
+  
+  // Relations
+  application       Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user              User               @relation("ApplicationEvents", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([applicationId])
+  @@index([eventType])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+
