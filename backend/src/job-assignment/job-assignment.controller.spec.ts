@@ -16,6 +16,8 @@ import { AuthGuardWithRoles } from '../auth/guards/auth.guard';
 import { JwtService } from '@nestjs/jwt';
 import { SessionService } from '../auth/session.service';
 import { Reflector } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard } from '@nestjs/throttler';
 
 describe('JobAssignmentController', () => {
   let controller: JobAssignmentController;
@@ -77,6 +79,10 @@ describe('JobAssignmentController', () => {
     }),
   };
 
+  const mockThrottlerGuard = {
+    canActivate: jest.fn().mockReturnValue(true),
+  };
+
   const mockRequest = {
     user: {
       id: 'user-1',
@@ -90,6 +96,12 @@ describe('JobAssignmentController', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot([{
+          ttl: 60000,
+          limit: 10,
+        }]),
+      ],
       controllers: [JobAssignmentController],
       providers: [
         {
@@ -116,6 +128,8 @@ describe('JobAssignmentController', () => {
     })
     .overrideGuard(AuthGuardWithRoles)
     .useValue(mockAuthGuard)
+    .overrideGuard(ThrottlerGuard)
+    .useValue(mockThrottlerGuard)
     .compile();
 
     controller = module.get<JobAssignmentController>(JobAssignmentController);
