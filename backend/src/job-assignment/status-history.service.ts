@@ -32,7 +32,7 @@ export class StatusHistoryService {
         return null; // Skip creating history if no user ID is provided
       }
 
-      console.log(`Creating status history for assignment ${assignmentId}: ${previousStatus || 'INITIAL'} -> ${newStatus} by user ${changedBy}`);
+  
 
       const historyRecord = await this.prisma.assignmentStatusHistory.create({
         data: {
@@ -59,7 +59,7 @@ export class StatusHistoryService {
         },
       });
 
-      console.log(`✅ Status history created successfully: ${historyRecord.id}`);
+  
       this.logger.log(
         `Status history created for assignment ${assignmentId}: ${previousStatus || 'INITIAL'} -> ${newStatus} by user ${changedBy}`
       );

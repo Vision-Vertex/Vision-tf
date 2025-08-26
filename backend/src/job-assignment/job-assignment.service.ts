@@ -10,6 +10,14 @@ import { CreateTeamAndAssignDto } from './dto/create-assign-team.dto';
 import { UpdateTeamAssignmentStatusDto } from './dto/update-team-assignment.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { StatusHistoryService } from './status-history.service';
+import { 
+  BulkAssignmentDto, 
+  BulkAssignmentResponseDto, 
+  BulkStatusUpdateDto, 
+  BulkStatusUpdateResponseDto,
+  BulkAssignmentItemDto,
+  BulkStatusUpdateItemDto 
+} from './dto/bulk-assignment.dto';
 
 @Injectable()
 export class JobAssignmentService {
@@ -704,8 +712,7 @@ async createTeamAndAssign(dto: CreateTeamAndAssignDto) {
     userAgent?: string;
     metadata?: any;
   }) {
-    console.log('🔍 Debug - Team Service received userId:', userId);
-    console.log('🔍 Debug - Team Service received dto:', dto);
+
     
     const assignment = await this.prisma.teamAssignment.findUnique({
       where: { id },
@@ -856,8 +863,7 @@ async createTeamAndAssign(dto: CreateTeamAndAssignDto) {
       metadata?: any;
     }
   ): Promise<any> {
-    console.log('🔍 Debug - Service received userId:', userId);
-    console.log('🔍 Debug - Service received userRole:', userRole);
+
     const assignment = await this.findOne(id);
     if (!assignment) {
       throw new HttpException('Assignment not found', HttpStatus.NOT_FOUND);
@@ -911,5 +917,246 @@ async createTeamAndAssign(dto: CreateTeamAndAssignDto) {
     }
 
     return updatedAssignment;
+  }
+
+  /**
+   * Create multiple assignments in bulk
+   */
+  async createBulkAssignments(
+    dto: BulkAssignmentDto, 
+    assignedBy: string,
+    options?: {
+      ipAddress?: string;
+      userAgent?: string;
+      metadata?: any;
+    }
+  ): Promise<BulkAssignmentResponseDto> {
+    const startTime = Date.now();
+    const successfulAssignments: any[] = [];
+    const failedAssignments: Array<{
+      assignment: BulkAssignmentItemDto;
+      error: string;
+    }> = [];
+
+
+
+    // Process assignments in parallel with error handling
+    const assignmentPromises = dto.assignments.map(async (assignmentItem) => {
+      try {
+        // Validate that job and developer exist
+        const [job, developer] = await Promise.all([
+          this.prisma.job.findUnique({ where: { id: assignmentItem.jobId } }),
+          this.prisma.user.findUnique({ where: { id: assignmentItem.developerId } })
+        ]);
+
+        if (!job) {
+          throw new Error(`Job with ID ${assignmentItem.jobId} not found`);
+        }
+
+        if (!developer) {
+          throw new Error(`Developer with ID ${assignmentItem.developerId} not found`);
+        }
+
+        // Check if assignment already exists
+        const existingAssignment = await this.prisma.jobAssignment.findFirst({
+          where: {
+            jobId: assignmentItem.jobId,
+            developerId: assignmentItem.developerId,
+            status: {
+              notIn: ['CANCELLED', 'FAILED']
+            }
+          }
+        });
+
+        if (existingAssignment) {
+          throw new Error(`Assignment already exists for job ${assignmentItem.jobId} and developer ${assignmentItem.developerId}`);
+        }
+
+        // Create the assignment
+        const newAssignment = await this.prisma.jobAssignment.create({
+          data: {
+            jobId: assignmentItem.jobId,
+            developerId: assignmentItem.developerId,
+            assignedBy,
+            assignmentType: dto.assignmentType,
+            notes: assignmentItem.notes,
+            status: AssignmentStatus.PENDING
+          },
+          include: {
+            job: true,
+            developer: true,
+            assignedByUser: true
+          }
+        });
+
+        // Create status history record
+        await this.statusHistoryService.createAssignmentStatusHistory(
+          newAssignment.id,
+          null,
+          AssignmentStatus.PENDING,
+          assignedBy,
+          {
+            reason: 'Bulk assignment creation',
+            notes: assignmentItem.notes,
+            ipAddress: options?.ipAddress,
+            userAgent: options?.userAgent,
+            metadata: {
+              ...options?.metadata,
+              bulkOperation: true,
+              assignmentType: dto.assignmentType
+            }
+          }
+        );
+
+        return { success: true, assignment: newAssignment };
+      } catch (error) {
+
+        return { 
+          success: false, 
+          assignment: assignmentItem, 
+          error: error.message 
+        };
+      }
+    });
+
+    // Wait for all assignments to be processed
+    const results = await Promise.all(assignmentPromises);
+
+    // Separate successful and failed assignments
+    results.forEach(result => {
+      if (result.success) {
+        successfulAssignments.push(result.assignment);
+      } else {
+        failedAssignments.push({
+          assignment: result.assignment as BulkAssignmentItemDto,
+          error: result.error
+        });
+      }
+    });
+
+    const processingTime = Date.now() - startTime;
+
+
+
+    return {
+      successCount: successfulAssignments.length,
+      failureCount: failedAssignments.length,
+      successfulAssignments,
+      failedAssignments,
+      processingTime
+    };
+  }
+
+  /**
+   * Update multiple assignment statuses in bulk
+   */
+  async updateBulkAssignmentStatuses(
+    dto: BulkStatusUpdateDto,
+    userId: string,
+    userRole: string,
+    options?: {
+      ipAddress?: string;
+      userAgent?: string;
+      metadata?: any;
+    }
+  ): Promise<BulkStatusUpdateResponseDto> {
+    const startTime = Date.now();
+    const successfulUpdates: any[] = [];
+    const failedUpdates: Array<{
+      update: BulkStatusUpdateItemDto;
+      error: string;
+    }> = [];
+
+
+
+    // Process updates in parallel with error handling
+    const updatePromises = dto.updates.map(async (updateItem) => {
+      try {
+        const assignment = await this.findOne(updateItem.assignmentId);
+        if (!assignment) {
+          throw new Error(`Assignment with ID ${updateItem.assignmentId} not found`);
+        }
+
+        // Verify the user has permission to update this assignment
+        if (userRole !== 'ADMIN' && assignment.developerId !== userId) {
+          throw new Error('You can only update your own assignments');
+        }
+
+        // Validate status transition
+        if (!this.validateStatusTransition(assignment.status, updateItem.status)) {
+          const allowedTransitions = this.statusTransitions[assignment.status];
+          throw new Error(
+            `Invalid status transition from ${assignment.status} to ${updateItem.status}. Allowed transitions: ${allowedTransitions.join(', ')}`
+          );
+        }
+
+        // Execute status-specific business logic
+        await this.executeStatusTriggers(assignment, updateItem.status);
+
+        // Update assignment status
+        const updatedAssignment = await this.prisma.jobAssignment.update({
+          where: { id: updateItem.assignmentId },
+          data: { 
+            status: updateItem.status,
+            updatedAt: new Date()
+          },
+          include: { job: true, developer: true, assignedByUser: true }
+        });
+
+        // Create status history record
+        await this.statusHistoryService.createAssignmentStatusHistory(
+          updateItem.assignmentId,
+          assignment.status,
+          updateItem.status,
+          userId,
+          {
+            reason: updateItem.reason || 'Bulk status update',
+            notes: updateItem.notes,
+            ipAddress: options?.ipAddress,
+            userAgent: options?.userAgent,
+            metadata: {
+              ...options?.metadata,
+              bulkOperation: true
+            }
+          }
+        );
+
+        return { success: true, assignment: updatedAssignment };
+      } catch (error) {
+
+        return { 
+          success: false, 
+          update: updateItem, 
+          error: error.message 
+        };
+      }
+    });
+
+    // Wait for all updates to be processed
+    const results = await Promise.all(updatePromises);
+
+    // Separate successful and failed updates
+    results.forEach(result => {
+      if (result.success) {
+        successfulUpdates.push(result.assignment);
+      } else {
+        failedUpdates.push({
+          update: result.update as BulkStatusUpdateItemDto,
+          error: result.error
+        });
+      }
+    });
+
+    const processingTime = Date.now() - startTime;
+
+
+
+    return {
+      successCount: successfulUpdates.length,
+      failureCount: failedUpdates.length,
+      successfulUpdates,
+      failedUpdates,
+      processingTime
+    };
   }
 }

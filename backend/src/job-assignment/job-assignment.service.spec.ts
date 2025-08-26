@@ -654,4 +654,289 @@ describe('JobAssignmentService', () => {
       );
     });
   });
+
+  describe('Bulk Assignment Operations', () => {
+    const mockBulkAssignmentDto = {
+      assignments: [
+        {
+          jobId: 'job-1',
+          developerId: 'dev-1',
+          notes: 'High priority assignment'
+        },
+        {
+          jobId: 'job-2',
+          developerId: 'dev-2',
+          notes: 'Standard assignment'
+        }
+      ],
+      assignmentType: 'bulk_manual'
+    };
+
+    const mockBulkStatusUpdateDto = {
+      updates: [
+        {
+          assignmentId: 'assignment-1',
+          status: AssignmentStatus.COMPLETED, // Invalid: PENDING -> COMPLETED
+          reason: 'Project started',
+          notes: 'Developer confirmed start'
+        },
+        {
+          assignmentId: 'assignment-2',
+          status: AssignmentStatus.COMPLETED, // Invalid: IN_PROGRESS -> COMPLETED (but we'll mock it as PENDING)
+          reason: 'Project finished',
+          notes: 'All deliverables submitted'
+        }
+      ]
+    };
+
+    const mockBulkStatusUpdateDtoValid = {
+      updates: [
+        {
+          assignmentId: 'assignment-1',
+          status: AssignmentStatus.IN_PROGRESS, // Valid: PENDING -> IN_PROGRESS
+          reason: 'Project started',
+          notes: 'Developer confirmed start'
+        },
+        {
+          assignmentId: 'assignment-2',
+          status: AssignmentStatus.COMPLETED, // Valid: IN_PROGRESS -> COMPLETED
+          reason: 'Project finished',
+          notes: 'All deliverables submitted'
+        }
+      ]
+    };
+
+    const mockBulkStatusUpdateDtoPartialFailure = {
+      updates: [
+        {
+          assignmentId: 'assignment-1',
+          status: AssignmentStatus.IN_PROGRESS, // Valid: PENDING -> IN_PROGRESS
+          reason: 'Project started',
+          notes: 'Developer confirmed start'
+        },
+        {
+          assignmentId: 'assignment-2',
+          status: AssignmentStatus.IN_PROGRESS, // This won't matter since assignment won't be found
+          reason: 'Project finished',
+          notes: 'All deliverables submitted'
+        }
+      ]
+    };
+
+    describe('createBulkAssignments', () => {
+      it('should create multiple assignments successfully', async () => {
+        const mockJob1 = { id: 'job-1', title: 'Job 1' };
+        const mockJob2 = { id: 'job-2', title: 'Job 2' };
+        const mockDev1 = { id: 'dev-1', email: 'dev1@test.com' };
+        const mockDev2 = { id: 'dev-2', email: 'dev2@test.com' };
+
+        mockPrismaService.job.findUnique
+          .mockResolvedValueOnce(mockJob1)
+          .mockResolvedValueOnce(mockJob2);
+        
+        mockPrismaService.user.findUnique
+          .mockResolvedValueOnce(mockDev1)
+          .mockResolvedValueOnce(mockDev2);
+
+        mockPrismaService.jobAssignment.findFirst
+          .mockResolvedValue(null);
+
+        const mockAssignment1 = { id: 'assignment-1', jobId: 'job-1', developerId: 'dev-1', status: AssignmentStatus.PENDING };
+        const mockAssignment2 = { id: 'assignment-2', jobId: 'job-2', developerId: 'dev-2', status: AssignmentStatus.PENDING };
+
+        mockPrismaService.jobAssignment.create
+          .mockResolvedValueOnce(mockAssignment1)
+          .mockResolvedValueOnce(mockAssignment2);
+
+        mockStatusHistoryService.createAssignmentStatusHistory.mockResolvedValue(undefined);
+
+        const result = await service.createBulkAssignments(mockBulkAssignmentDto, 'admin-1');
+
+        expect(result.successCount).toBe(2);
+        expect(result.failureCount).toBe(0);
+        expect(result.successfulAssignments).toHaveLength(2);
+        expect(result.failedAssignments).toHaveLength(0);
+        expect(result.processingTime).toBeGreaterThanOrEqual(0);
+      });
+
+      it('should handle partial failures in bulk assignment creation', async () => {
+        const mockJob1 = { id: 'job-1', title: 'Job 1' };
+        const mockDev1 = { id: 'dev-1', email: 'dev1@test.com' };
+
+        mockPrismaService.job.findUnique
+          .mockResolvedValueOnce(mockJob1)
+          .mockResolvedValueOnce(null); // Job 2 not found
+        
+        mockPrismaService.user.findUnique
+          .mockResolvedValueOnce(mockDev1)
+          .mockResolvedValueOnce(null); // Dev 2 not found
+
+        mockPrismaService.jobAssignment.findFirst
+          .mockResolvedValue(null);
+
+        const mockAssignment1 = { id: 'assignment-1', jobId: 'job-1', developerId: 'dev-1', status: AssignmentStatus.PENDING };
+
+        mockPrismaService.jobAssignment.create
+          .mockResolvedValueOnce(mockAssignment1);
+
+        mockStatusHistoryService.createAssignmentStatusHistory.mockResolvedValue(undefined);
+
+        const result = await service.createBulkAssignments(mockBulkAssignmentDto, 'admin-1');
+
+        expect(result.successCount).toBe(1);
+        expect(result.failureCount).toBe(1);
+        expect(result.successfulAssignments).toHaveLength(1);
+        expect(result.failedAssignments).toHaveLength(1);
+        expect(result.failedAssignments[0].error).toContain('not found');
+      });
+
+      it('should handle existing assignment conflicts', async () => {
+        const mockJob1 = { id: 'job-1', title: 'Job 1' };
+        const mockJob2 = { id: 'job-2', title: 'Job 2' };
+        const mockDev1 = { id: 'dev-1', email: 'dev1@test.com' };
+        const mockDev2 = { id: 'dev-2', email: 'dev2@test.com' };
+
+        mockPrismaService.job.findUnique
+          .mockResolvedValueOnce(mockJob1)
+          .mockResolvedValueOnce(mockJob2);
+        
+        mockPrismaService.user.findUnique
+          .mockResolvedValueOnce(mockDev1)
+          .mockResolvedValueOnce(mockDev2);
+
+        // Existing assignment found for both
+        mockPrismaService.jobAssignment.findFirst
+          .mockResolvedValue({ id: 'existing-assignment', jobId: 'job-1', developerId: 'dev-1' });
+
+        const result = await service.createBulkAssignments(mockBulkAssignmentDto, 'admin-1');
+
+        expect(result.successCount).toBe(0);
+        expect(result.failureCount).toBe(2);
+        expect(result.failedAssignments[0].error).toContain('already exists');
+        expect(result.failedAssignments[1].error).toContain('already exists');
+      });
+    });
+
+    describe('updateBulkAssignmentStatuses', () => {
+      it('should update multiple assignment statuses successfully', async () => {
+        const mockAssignment1 = { 
+          id: 'assignment-1', 
+          jobId: 'job-1', 
+          developerId: 'dev-1', 
+          status: AssignmentStatus.PENDING 
+        };
+        const mockAssignment2 = { 
+          id: 'assignment-2', 
+          jobId: 'job-2', 
+          developerId: 'dev-2', 
+          status: AssignmentStatus.IN_PROGRESS 
+        };
+
+        // Use the existing mock
+        mockFindOne
+          .mockResolvedValueOnce(mockAssignment1)
+          .mockResolvedValueOnce(mockAssignment2);
+
+        const updatedAssignment1 = { ...mockAssignment1, status: AssignmentStatus.IN_PROGRESS };
+        const updatedAssignment2 = { ...mockAssignment2, status: AssignmentStatus.COMPLETED };
+
+        mockPrismaService.jobAssignment.update
+          .mockResolvedValueOnce(updatedAssignment1)
+          .mockResolvedValueOnce(updatedAssignment2);
+
+        mockStatusHistoryService.createAssignmentStatusHistory.mockResolvedValue(undefined);
+
+        const result = await service.updateBulkAssignmentStatuses(mockBulkStatusUpdateDtoValid, 'admin-1', 'ADMIN');
+
+        expect(result.successCount).toBe(2);
+        expect(result.failureCount).toBe(0);
+        expect(result.successfulUpdates).toHaveLength(2);
+        expect(result.failedUpdates).toHaveLength(0);
+        expect(result.processingTime).toBeGreaterThanOrEqual(0);
+      });
+
+      it('should handle partial failures in bulk status updates', async () => {
+        const mockAssignment1 = { 
+          id: 'assignment-1', 
+          jobId: 'job-1', 
+          developerId: 'dev-1', 
+          status: AssignmentStatus.PENDING 
+        };
+
+        // Use the existing mock
+        mockFindOne
+          .mockResolvedValueOnce(mockAssignment1)
+          .mockResolvedValueOnce(null); // Assignment 2 not found
+
+        const updatedAssignment1 = { ...mockAssignment1, status: AssignmentStatus.IN_PROGRESS };
+
+        mockPrismaService.jobAssignment.update
+          .mockResolvedValueOnce(updatedAssignment1);
+
+        mockStatusHistoryService.createAssignmentStatusHistory.mockResolvedValue(undefined);
+
+        const result = await service.updateBulkAssignmentStatuses(mockBulkStatusUpdateDtoPartialFailure, 'admin-1', 'ADMIN');
+
+        expect(result.successCount).toBe(1);
+        expect(result.failureCount).toBe(1);
+        expect(result.successfulUpdates).toHaveLength(1);
+        expect(result.failedUpdates).toHaveLength(1);
+        expect(result.failedUpdates[0].error).toContain('not found');
+      });
+
+      it('should handle invalid status transitions', async () => {
+        const mockAssignment1 = { 
+          id: 'assignment-1', 
+          jobId: 'job-1', 
+          developerId: 'dev-1', 
+          status: AssignmentStatus.PENDING 
+        };
+        const mockAssignment2 = { 
+          id: 'assignment-2', 
+          jobId: 'job-2', 
+          developerId: 'dev-2', 
+          status: AssignmentStatus.PENDING // Changed to PENDING so both transitions are invalid
+        };
+
+        // Use the existing mock
+        mockFindOne
+          .mockResolvedValueOnce(mockAssignment1)
+          .mockResolvedValueOnce(mockAssignment2);
+
+        const result = await service.updateBulkAssignmentStatuses(mockBulkStatusUpdateDto, 'admin-1', 'ADMIN');
+
+        expect(result.successCount).toBe(0);
+        expect(result.failureCount).toBe(2);
+        expect(result.failedUpdates[0].error).toContain('Invalid status transition');
+        expect(result.failedUpdates[1].error).toContain('Invalid status transition');
+      });
+
+      it('should handle permission errors for non-admin users', async () => {
+        const mockAssignment1 = { 
+          id: 'assignment-1', 
+          jobId: 'job-1', 
+          developerId: 'dev-2', // Different developer
+          status: AssignmentStatus.PENDING 
+        };
+        const mockAssignment2 = { 
+          id: 'assignment-2', 
+          jobId: 'job-2', 
+          developerId: 'dev-3', // Different developer
+          status: AssignmentStatus.PENDING // Changed to PENDING so both fail with permission error
+        };
+
+        // Use the existing mock
+        mockFindOne
+          .mockResolvedValueOnce(mockAssignment1)
+          .mockResolvedValueOnce(mockAssignment2);
+
+        const result = await service.updateBulkAssignmentStatuses(mockBulkStatusUpdateDto, 'dev-1', 'DEVELOPER');
+
+        expect(result.successCount).toBe(0);
+        expect(result.failureCount).toBe(2);
+        expect(result.failedUpdates[0].error).toContain('You can only update your own assignments');
+        expect(result.failedUpdates[1].error).toContain('You can only update your own assignments');
+      });
+    });
+  });
 });
