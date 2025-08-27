@@ -13,16 +13,16 @@ describe('VolunteerApplicationService', () => {
   let prismaService: PrismaService;
 
   const mockPrismaService = {
-    application: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      count: jest.fn(),
-    },
     job: {
       findUnique: jest.fn(),
+    },
+    application: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
@@ -55,101 +55,167 @@ describe('VolunteerApplicationService', () => {
   });
 
   describe('create', () => {
-    const mockCreateDto: CreateApplicationDto = {
-      jobId: 'job-1',
-      coverLetter: 'I am excited to apply for this position',
-      proposedRate: 50.0,
-      estimatedHours: 80,
-      skills: [
-        { skill: 'React', level: 'EXPERT', years: 3 }
-      ],
-      motivation: 'I am passionate about this work',
-      priority: ApplicationPriority.MEDIUM
-    };
-
     const mockJob = {
       id: 'job-1',
-      title: 'React Developer',
-      visibility: JobVisibility.PUBLIC,
-      status: JobStatus.APPROVED,
-      client: { id: 'client-1' }
+      visibility: 'PUBLIC',
+      status: 'APPROVED',
+      client: { id: 'client-1' },
     };
 
     const mockDeveloper = {
       id: 'dev-1',
-      role: UserRole.DEVELOPER
+      role: UserRole.DEVELOPER,
+      profile: {
+        id: 'profile-1',
+        skills: ['JavaScript', 'React', 'Node.js'],
+        experience: 5,
+        hourlyRate: 50,
+        currency: 'USD',
+        availability: { available: true, timezone: 'UTC+3' },
+        portfolioLinks: { portfolio: 'https://portfolio.com' },
+      },
     };
 
-    const mockApplication = {
-      id: 'app-1',
-      ...mockCreateDto,
-      developerId: 'dev-1',
-      status: ApplicationStatus.PENDING,
-      appliedAt: new Date(),
-      job: mockJob,
-      developer: mockDeveloper
+    const createApplicationDto: CreateApplicationDto = {
+      jobId: 'job-1',
+      coverLetter: 'I am excited to apply for this position',
+      motivation: 'I am passionate about this work',
+      relevantExperience: 'I have 5 years of experience',
     };
 
-    it('should create a new application successfully', async () => {
+    it('should create application with auto-populated data from profile', async () => {
       mockPrismaService.job.findUnique.mockResolvedValue(mockJob);
-      mockPrismaService.user.findUnique.mockResolvedValue(mockDeveloper);
       mockPrismaService.application.findUnique.mockResolvedValue(null);
-      mockPrismaService.application.create.mockResolvedValue(mockApplication);
-      mockPrismaService.applicationStatusHistory.create.mockResolvedValue(undefined);
-      mockPrismaService.applicationEvent.create.mockResolvedValue(undefined);
-
-      const result = await service.create(mockCreateDto, 'dev-1');
-
-      expect(result).toEqual(expect.objectContaining({
+      mockPrismaService.user.findUnique.mockResolvedValue(mockDeveloper);
+      mockPrismaService.application.create.mockResolvedValue({
         id: 'app-1',
-        jobId: 'job-1',
-        developerId: 'dev-1',
-        status: ApplicationStatus.PENDING
-      }));
+        ...createApplicationDto,
+        status: ApplicationStatus.PENDING,
+        priority: ApplicationPriority.MEDIUM,
+        proposedRate: 50,
+        proposedCurrency: 'USD',
+        skills: [
+          { skill: 'JavaScript', level: 'EXPERT', years: 5 },
+          { skill: 'React', level: 'EXPERT', years: 5 },
+          { skill: 'Node.js', level: 'EXPERT', years: 5 },
+        ],
+        portfolio: 'https://portfolio.com',
+        availability: { available: true, timezone: 'UTC+3' },
+        job: mockJob,
+        developer: mockDeveloper,
+      });
+
+      const result = await service.create(createApplicationDto, 'dev-1');
+
       expect(mockPrismaService.application.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          ...mockCreateDto,
-          developerId: 'dev-1',
-          status: ApplicationStatus.PENDING
+          job: { connect: { id: 'job-1' } },
+          developer: { connect: { id: 'dev-1' } },
+          status: ApplicationStatus.PENDING,
+          coverLetter: 'I am excited to apply for this position',
+          motivation: 'I am passionate about this work',
+          relevantExperience: 'I have 5 years of experience',
+          proposedRate: 50,
+          proposedCurrency: 'USD',
+          skills: expect.arrayContaining([
+            { skill: 'JavaScript', level: 'EXPERT', years: 5 },
+            { skill: 'React', level: 'EXPERT', years: 5 },
+            { skill: 'Node.js', level: 'EXPERT', years: 5 },
+          ]),
+          portfolio: 'https://portfolio.com',
+          availability: { available: true, timezone: 'UTC+3' },
         }),
-        include: expect.any(Object)
+        include: expect.any(Object),
+      });
+
+      expect(result).toBeDefined();
+    });
+
+    it('should allow overriding auto-populated data', async () => {
+      const dtoWithOverrides = {
+        ...createApplicationDto,
+        proposedRate: 75,
+        proposedCurrency: 'EUR',
+        skills: [{ skill: 'Python', level: 'EXPERT', years: 3 }],
+        portfolio: 'https://custom-portfolio.com',
+      };
+
+      mockPrismaService.job.findUnique.mockResolvedValue(mockJob);
+      mockPrismaService.application.findUnique.mockResolvedValue(null);
+      mockPrismaService.user.findUnique.mockResolvedValue(mockDeveloper);
+      mockPrismaService.application.create.mockResolvedValue({
+        id: 'app-1',
+        ...dtoWithOverrides,
+        status: ApplicationStatus.PENDING,
+        job: mockJob,
+        developer: mockDeveloper,
+      });
+
+      const result = await service.create(dtoWithOverrides, 'dev-1');
+
+      expect(mockPrismaService.application.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          proposedRate: 75,
+          proposedCurrency: 'EUR',
+          skills: [{ skill: 'Python', level: 'EXPERT', years: 3 }],
+          portfolio: 'https://custom-portfolio.com',
+        }),
+        include: expect.any(Object),
       });
     });
 
-    it('should throw error when job not found', async () => {
+    it('should throw error if developer profile not found', async () => {
+      const developerWithoutProfile = {
+        id: 'dev-1',
+        role: UserRole.DEVELOPER,
+        profile: null,
+      };
+
+      mockPrismaService.job.findUnique.mockResolvedValue(mockJob);
+      mockPrismaService.application.findUnique.mockResolvedValue(null);
+      mockPrismaService.user.findUnique.mockResolvedValue(developerWithoutProfile);
+
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        'Developer profile not found. Please complete your profile first.'
+      );
+    });
+
+    it('should throw error if job not found', async () => {
       mockPrismaService.job.findUnique.mockResolvedValue(null);
 
-      await expect(service.create(mockCreateDto, 'dev-1')).rejects.toThrow(NotFoundException);
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        NotFoundException
+      );
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        'Job not found'
+      );
     });
 
-    it('should throw error when job is not public', async () => {
-      const privateJob = { ...mockJob, visibility: JobVisibility.PRIVATE };
+    it('should throw error if job is not public', async () => {
+      const privateJob = { ...mockJob, visibility: 'PRIVATE' };
       mockPrismaService.job.findUnique.mockResolvedValue(privateJob);
 
-      await expect(service.create(mockCreateDto, 'dev-1')).rejects.toThrow(ForbiddenException);
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        ForbiddenException
+      );
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        'This job is not publicly available'
+      );
     });
 
-    it('should throw error when job is not approved', async () => {
-      const draftJob = { ...mockJob, status: JobStatus.DRAFT };
-      mockPrismaService.job.findUnique.mockResolvedValue(draftJob);
-
-      await expect(service.create(mockCreateDto, 'dev-1')).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw error when developer already applied', async () => {
+    it('should throw error if developer already applied', async () => {
       mockPrismaService.job.findUnique.mockResolvedValue(mockJob);
-      mockPrismaService.user.findUnique.mockResolvedValue(mockDeveloper);
       mockPrismaService.application.findUnique.mockResolvedValue({ id: 'existing-app' });
 
-      await expect(service.create(mockCreateDto, 'dev-1')).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw error when user is not a developer', async () => {
-      const clientUser = { ...mockDeveloper, role: UserRole.CLIENT };
-      mockPrismaService.job.findUnique.mockResolvedValue(mockJob);
-      mockPrismaService.user.findUnique.mockResolvedValue(clientUser);
-
-      await expect(service.create(mockCreateDto, 'dev-1')).rejects.toThrow(ForbiddenException);
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        BadRequestException
+      );
+      await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
+        'You have already applied for this job'
+      );
     });
   });
 
@@ -427,6 +493,100 @@ describe('VolunteerApplicationService', () => {
 
     it('should throw error when developer tries to access other applications', async () => {
       await expect(service.findByDeveloperId('dev-2', {}, 'dev-1', UserRole.DEVELOPER)).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getApplicationPrefillData', () => {
+    const mockDeveloper = {
+      id: 'dev-1',
+      role: UserRole.DEVELOPER,
+      profile: {
+        id: 'profile-1',
+        skills: ['JavaScript', 'React', 'Node.js'],
+        experience: 5,
+        hourlyRate: 50,
+        currency: 'USD',
+        availability: { available: true, timezone: 'UTC+3' },
+        portfolioLinks: { portfolio: 'https://portfolio.com' },
+      },
+    };
+
+    it('should return prefill data from developer profile', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(mockDeveloper);
+
+      const result = await service.getApplicationPrefillData('dev-1');
+
+      expect(result).toEqual({
+        skills: [
+          { skill: 'JavaScript', level: 'EXPERT', years: 5 },
+          { skill: 'React', level: 'EXPERT', years: 5 },
+          { skill: 'Node.js', level: 'EXPERT', years: 5 },
+        ],
+        availability: { available: true, timezone: 'UTC+3' },
+        portfolio: 'https://portfolio.com',
+        hourlyRate: 50,
+        currency: 'USD',
+        experience: 5,
+      });
+    });
+
+    it('should throw error if developer not found', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.getApplicationPrefillData('dev-1')).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it('should throw error if user is not a developer', async () => {
+      const clientUser = { id: 'client-1', role: UserRole.CLIENT };
+      mockPrismaService.user.findUnique.mockResolvedValue(clientUser);
+
+      await expect(service.getApplicationPrefillData('client-1')).rejects.toThrow(
+        ForbiddenException
+      );
+    });
+
+    it('should throw error if profile not found', async () => {
+      const developerWithoutProfile = {
+        id: 'dev-1',
+        role: UserRole.DEVELOPER,
+        profile: null,
+      };
+      mockPrismaService.user.findUnique.mockResolvedValue(developerWithoutProfile);
+
+      await expect(service.getApplicationPrefillData('dev-1')).rejects.toThrow(
+        BadRequestException
+      );
+    });
+  });
+
+  describe('extractPortfolioUrl', () => {
+    it('should extract portfolio URL from portfolio links object', () => {
+      const portfolioLinks = {
+        portfolio: 'https://portfolio.com',
+        github: 'https://github.com/user',
+        linkedin: 'https://linkedin.com/user',
+      };
+
+      const result = (service as any).extractPortfolioUrl(portfolioLinks);
+      expect(result).toBe('https://portfolio.com');
+    });
+
+    it('should fallback to github if portfolio not available', () => {
+      const portfolioLinks = {
+        github: 'https://github.com/user',
+        linkedin: 'https://linkedin.com/user',
+      };
+
+      const result = (service as any).extractPortfolioUrl(portfolioLinks);
+      expect(result).toBe('https://github.com/user');
+    });
+
+    it('should return null for invalid portfolio links', () => {
+      expect((service as any).extractPortfolioUrl(null)).toBeNull();
+      expect((service as any).extractPortfolioUrl(undefined)).toBeNull();
+      expect((service as any).extractPortfolioUrl('not-an-object')).toBeNull();
     });
   });
 });

@@ -1,4 +1,4 @@
-import { IsUUID, IsString, IsOptional, IsNumber, IsArray, IsEnum, IsUrl, IsObject, ValidateNested, ArrayMinSize, ArrayMaxSize, Min, Max, IsDateString } from 'class-validator';
+import { IsUUID, IsString, IsOptional, IsNumber, IsArray, IsEnum, IsUrl, IsObject, ValidateNested, ArrayMinSize, ArrayMaxSize, Min, Max, IsDateString, IsBoolean, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ApplicationStatus, ApplicationPriority } from '@prisma/client';
@@ -34,19 +34,43 @@ export class ReferenceDto {
 }
 
 export class AvailabilityDto {
-  @ApiProperty({ description: 'Start date', example: '2024-01-01' })
-  @IsDateString()
-  startDate: string;
+  @ApiPropertyOptional({
+    description: 'Currently available for work',
+    example: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  available?: boolean;
 
-  @ApiProperty({ description: 'End date', example: '2024-06-01' })
-  @IsDateString()
-  endDate: string;
+  @ApiPropertyOptional({ description: 'Preferred work hours', example: '9-5' })
+  @IsString()
+  @IsOptional()
+  hours?: string;
 
-  @ApiProperty({ description: 'Hours per week', example: 40 })
+  @ApiPropertyOptional({ description: 'Timezone', example: 'UTC+3' })
+  @IsString()
+  @IsOptional()
+  timezone?: string;
+
+  @ApiPropertyOptional({ description: 'Notice period', example: '2 weeks' })
+  @IsString()
+  @IsOptional()
+  noticePeriod?: string;
+
+  @ApiPropertyOptional({ description: 'Max hours per week', example: 40 })
   @IsNumber()
+  @IsOptional()
   @Min(1)
   @Max(168)
-  hoursPerWeek: number;
+  maxHoursPerWeek?: number;
+
+  @ApiPropertyOptional({
+    description: 'Preferred project types',
+    example: ['web', 'mobile'],
+  })
+  @IsArray()
+  @IsOptional()
+  preferredProjectTypes?: string[];
 }
 
 export class QuestionDto {
@@ -60,19 +84,34 @@ export class CreateApplicationDto {
   @IsUUID()
   jobId: string;
 
-  @ApiPropertyOptional({ description: 'Cover letter', example: 'I am excited to apply for this position...' })
-  @IsOptional()
+  @ApiProperty({ description: 'Cover letter - required for each application', example: 'I am excited to apply for this position...' })
   @IsString()
-  @Max(5000)
-  coverLetter?: string;
+  @MaxLength(5000)
+  coverLetter: string;
 
-  @ApiPropertyOptional({ description: 'Proposed hourly rate', example: 50.0 })
+  @ApiPropertyOptional({ description: 'Motivation for applying - required for each application', example: 'I am passionate about this type of work...' })
+  @IsString()
+  @MaxLength(2000)
+  motivation: string;
+
+  @ApiPropertyOptional({ description: 'Relevant experience description - required for each application', example: 'I have 5 years of experience in...' })
+  @IsString()
+  @MaxLength(3000)
+  relevantExperience: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Proposed hourly rate (auto-populated from profile if not provided)', 
+    example: 50.0 
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   proposedRate?: number;
 
-  @ApiPropertyOptional({ description: 'Currency for proposed rate', example: 'USD' })
+  @ApiPropertyOptional({ 
+    description: 'Currency for proposed rate (auto-populated from profile if not provided)', 
+    example: 'USD' 
+  })
   @IsOptional()
   @IsString()
   proposedCurrency?: string;
@@ -83,14 +122,19 @@ export class CreateApplicationDto {
   @Min(1)
   estimatedHours?: number;
 
-  @ApiPropertyOptional({ description: 'Availability information' })
+  @ApiPropertyOptional({ 
+    description: 'Availability information (auto-populated from profile if not provided)' 
+  })
   @IsOptional()
   @IsObject()
   @ValidateNested()
   @Type(() => AvailabilityDto)
   availability?: AvailabilityDto;
 
-  @ApiPropertyOptional({ description: 'Skills array', type: [SkillDto] })
+  @ApiPropertyOptional({ 
+    description: 'Skills array (auto-populated from profile if not provided)', 
+    type: [SkillDto] 
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -99,7 +143,10 @@ export class CreateApplicationDto {
   @ArrayMaxSize(20)
   skills?: SkillDto[];
 
-  @ApiPropertyOptional({ description: 'Portfolio URL', example: 'https://portfolio.example.com' })
+  @ApiPropertyOptional({ 
+    description: 'Portfolio URL (auto-populated from profile if not provided)', 
+    example: 'https://portfolio.example.com' 
+  })
   @IsOptional()
   @IsUrl()
   portfolio?: string;
@@ -111,18 +158,6 @@ export class CreateApplicationDto {
   @Type(() => ReferenceDto)
   @ArrayMaxSize(5)
   references?: ReferenceDto[];
-
-  @ApiPropertyOptional({ description: 'Motivation for applying', example: 'I am passionate about this type of work...' })
-  @IsOptional()
-  @IsString()
-  @Max(2000)
-  motivation?: string;
-
-  @ApiPropertyOptional({ description: 'Relevant experience description', example: 'I have 5 years of experience in...' })
-  @IsOptional()
-  @IsString()
-  @Max(3000)
-  relevantExperience?: string;
 
   @ApiPropertyOptional({ description: 'Questions for the client', type: [QuestionDto] })
   @IsOptional()

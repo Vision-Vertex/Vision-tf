@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateApplicationDto } from './dto/create-application.dto';
+import { CreateApplicationDto, SkillDto, AvailabilityDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
 import { QueryApplicationDto } from './dto/query-application.dto';
@@ -66,11 +66,23 @@ export class VolunteerApplicationService {
     // Create the application
     const application = await this.prisma.application.create({
       data: {
-        ...createApplicationDto,
-        developerId,
+        job: { connect: { id: createApplicationDto.jobId } },
+        developer: { connect: { id: developerId } },
         status: ApplicationStatus.PENDING,
         priority: createApplicationDto.priority || ApplicationPriority.MEDIUM,
-        appliedAt: new Date()
+        appliedAt: new Date(),
+        coverLetter: createApplicationDto.coverLetter,
+        proposedRate: createApplicationDto.proposedRate,
+        proposedCurrency: createApplicationDto.proposedCurrency,
+        estimatedHours: createApplicationDto.estimatedHours,
+        availability: createApplicationDto.availability ? JSON.parse(JSON.stringify(createApplicationDto.availability)) : null,
+        skills: createApplicationDto.skills ? JSON.parse(JSON.stringify(createApplicationDto.skills)) : null,
+        portfolio: createApplicationDto.portfolio,
+        references: createApplicationDto.references ? JSON.parse(JSON.stringify(createApplicationDto.references)) : null,
+        motivation: createApplicationDto.motivation,
+        relevantExperience: createApplicationDto.relevantExperience,
+        questions: createApplicationDto.questions ? JSON.parse(JSON.stringify(createApplicationDto.questions)) : null,
+        attachments: createApplicationDto.attachments
       },
       include: {
         job: {
@@ -104,7 +116,7 @@ export class VolunteerApplicationService {
       ApplicationEventType.APPLICATION_CREATED,
       developerId,
       {
-        applicationData: {
+        eventData: {
           coverLetter: application.coverLetter,
           proposedRate: application.proposedRate,
           estimatedHours: application.estimatedHours
@@ -270,7 +282,19 @@ export class VolunteerApplicationService {
     const updatedApplication = await this.prisma.application.update({
       where: { id },
       data: {
-        ...updateApplicationDto,
+        coverLetter: updateApplicationDto.coverLetter,
+        proposedRate: updateApplicationDto.proposedRate,
+        proposedCurrency: updateApplicationDto.proposedCurrency,
+        estimatedHours: updateApplicationDto.estimatedHours,
+        availability: updateApplicationDto.availability ? JSON.parse(JSON.stringify(updateApplicationDto.availability)) : null,
+        skills: updateApplicationDto.skills ? JSON.parse(JSON.stringify(updateApplicationDto.skills)) : null,
+        portfolio: updateApplicationDto.portfolio,
+        references: updateApplicationDto.references ? JSON.parse(JSON.stringify(updateApplicationDto.references)) : null,
+        motivation: updateApplicationDto.motivation,
+        relevantExperience: updateApplicationDto.relevantExperience,
+        questions: updateApplicationDto.questions ? JSON.parse(JSON.stringify(updateApplicationDto.questions)) : null,
+        attachments: updateApplicationDto.attachments,
+        priority: updateApplicationDto.priority,
         version: { increment: 1 }
       },
       include: {
@@ -294,7 +318,9 @@ export class VolunteerApplicationService {
       ApplicationEventType.APPLICATION_UPDATED,
       userId,
       {
-        updatedFields: Object.keys(updateApplicationDto)
+        eventData: {
+          updatedFields: Object.keys(updateApplicationDto)
+        }
       }
     );
 
@@ -400,9 +426,11 @@ export class VolunteerApplicationService {
       ApplicationEventType.STATUS_CHANGED,
       userId,
       {
-        fromStatus: application.status,
-        toStatus: updateStatusDto.status,
-        reason: updateStatusDto.reason
+        eventData: {
+          fromStatus: application.status,
+          toStatus: updateStatusDto.status,
+          reason: updateStatusDto.reason
+        }
       }
     );
 
@@ -631,5 +659,70 @@ export class VolunteerApplicationService {
       developer: application.developer,
       reviewer: application.reviewer
     };
+  }
+
+  /**
+   * Get developer's profile data for pre-filling application form
+   */
+  async getApplicationPrefillData(developerId: string): Promise<{
+    skills: SkillDto[];
+    availability: AvailabilityDto;
+    portfolio: string | null;
+    hourlyRate: number | null;
+    currency: string;
+    experience: number | null;
+  }> {
+    const developer = await this.prisma.user.findUnique({
+      where: { id: developerId },
+      include: {
+        profile: true
+      }
+    });
+
+    if (!developer) {
+      throw new NotFoundException('Developer not found');
+    }
+
+    if (developer.role !== UserRole.DEVELOPER) {
+      throw new ForbiddenException('Only developers can access application prefill data');
+    }
+
+    const profile = developer.profile;
+    if (!profile) {
+      throw new BadRequestException('Developer profile not found. Please complete your profile first.');
+    }
+
+    // Convert profile skills to SkillDto format
+    const skills: SkillDto[] = profile.skills ? profile.skills.map(skill => ({
+      skill,
+      level: 'EXPERT', // Default level, can be enhanced later
+      years: profile.experience || 0
+    })) : [];
+
+    return {
+      skills,
+      availability: profile.availability as AvailabilityDto || null,
+      portfolio: profile.portfolioLinks ? this.extractPortfolioUrl(profile.portfolioLinks) : null,
+      hourlyRate: profile.hourlyRate,
+      currency: profile.currency || 'USD',
+      experience: profile.experience
+    };
+  }
+
+  /**
+   * Extract portfolio URL from profile portfolio links
+   */
+  private extractPortfolioUrl(portfolioLinks: any): string | null {
+    if (!portfolioLinks || typeof portfolioLinks !== 'object') {
+      return null;
+    }
+
+    // Look for portfolio, website, or github links
+    const portfolioUrl = portfolioLinks.portfolio || 
+                        portfolioLinks.website || 
+                        portfolioLinks.github ||
+                        portfolioLinks.linkedin;
+
+    return portfolioUrl || null;
   }
 }
