@@ -15,11 +15,23 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { VolunteerApplicationService } from './volunteer-application.service';
+import { ApplicationWorkflowService } from './application-workflow.service';
+
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
-import { QueryApplicationDto } from './dto/query-application.dto';
+import { QueryApplicationDto, QueryDeveloperApplicationDto, QueryJobApplicationDto } from './dto/query-application.dto';
 import { ApplicationResponseDto } from './dto/application-response.dto';
+import { 
+  JobDiscoveryFiltersDto, 
+  JobDiscoveryResponseDto, 
+  AvailabilityCheckDto, 
+  AvailabilityCheckResponseDto 
+} from './dto/job-discovery.dto';
+import { 
+  ApplicationProcessingDto, 
+  ApplicationMetricsDto 
+} from './dto/application-review.dto';
 import { AuthGuardWithRoles } from '../auth/guards/auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
@@ -27,47 +39,107 @@ import { UserRole } from '@prisma/client';
 @ApiTags('Volunteer Applications')
 @Controller('volunteer-applications')
 export class VolunteerApplicationController {
-  constructor(private readonly volunteerApplicationService: VolunteerApplicationService) {}
+  constructor(
+    private readonly volunteerApplicationService: VolunteerApplicationService,
+    private readonly applicationWorkflowService: ApplicationWorkflowService
+  ) {}
+
+  // ===== JOB DISCOVERY AND AVAILABILITY =====
 
   @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
-  @Throttle({ default: { limit: 30, ttl: 60000 } }) // 30 requests per minute
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Roles(UserRole.DEVELOPER)
-  @Get('prefill')
+  @Get('discover-jobs')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get developer profile data for pre-filling application form' })
+  @ApiOperation({ summary: 'Discover available jobs with smart matching' })
   @ApiResponse({ 
     status: 200, 
-    description: 'Prefill data retrieved successfully',
+    description: 'Jobs discovered successfully',
     schema: {
       type: 'object',
       properties: {
-        skills: {
+        jobs: {
           type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              skill: { type: 'string' },
-              level: { type: 'string' },
-              years: { type: 'number' }
-            }
-          }
+          items: { $ref: '#/components/schemas/JobDiscoveryResponseDto' }
         },
-        availability: { type: 'object' },
-        portfolio: { type: 'string', nullable: true },
-        hourlyRate: { type: 'number', nullable: true },
-        currency: { type: 'string' },
-        experience: { type: 'number', nullable: true }
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+        totalPages: { type: 'number' }
       }
     }
   })
-  @ApiResponse({ status: 400, description: 'Profile not found' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  async getPrefillData(@Request() req: any) {
-    return this.volunteerApplicationService.getApplicationPrefillData(req.user.userId);
+  async discoverJobs(
+    @Query() filters: JobDiscoveryFiltersDto,
+    @Request() req: any
+  ) {
+    const { page = 1, limit = 10, ...jobFilters } = filters;
+    return this.applicationWorkflowService.discoverJobs(jobFilters, req.user.userId, page, limit);
   }
 
   @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 applications per minute
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @Roles(UserRole.DEVELOPER)
+  @Post('check-availability')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Check if developer can apply to a specific job' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Availability check completed',
+    type: AvailabilityCheckResponseDto 
+  })
+  async checkAvailability(
+    @Body() checkDto: AvailabilityCheckDto,
+    @Request() req: any
+  ): Promise<AvailabilityCheckResponseDto> {
+    return this.applicationWorkflowService.checkAvailability({
+      ...checkDto,
+      developerId: req.user.userId
+    });
+  }
+
+  // ===== APPLICATION PROCESSING =====
+
+  @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Roles(UserRole.ADMIN, UserRole.CLIENT)
+  @Post('process')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Process application with specific actions' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Application processed successfully'
+  })
+  async processApplication(
+    @Body() processingDto: ApplicationProcessingDto,
+    @Request() req: any
+  ) {
+    return this.applicationWorkflowService.processApplication(processingDto, req.user.userId);
+  }
+
+  // ===== METRICS AND ANALYTICS =====
+
+  @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Roles(UserRole.ADMIN, UserRole.CLIENT, UserRole.DEVELOPER)
+  @Get('metrics')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get application metrics and analytics' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Metrics retrieved successfully',
+    type: ApplicationMetricsDto 
+  })
+  async getMetrics(@Request() req: any): Promise<ApplicationMetricsDto> {
+    return this.applicationWorkflowService.getApplicationMetrics(req.user.userId, req.user.role);
+  }
+
+
+
+
+
+  @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Roles(UserRole.DEVELOPER)
   @Post()
   @ApiBearerAuth('JWT-auth')
@@ -88,7 +160,7 @@ export class VolunteerApplicationController {
   }
 
   @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
-  @Throttle({ default: { limit: 30, ttl: 60000 } }) // 30 requests per minute
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Roles(UserRole.ADMIN, UserRole.CLIENT, UserRole.DEVELOPER)
   @Get()
   @ApiBearerAuth('JWT-auth')
@@ -111,10 +183,8 @@ export class VolunteerApplicationController {
     }
   })
   @ApiQuery({ name: 'jobId', required: false, description: 'Filter by job ID' })
-  @ApiQuery({ name: 'developerId', required: false, description: 'Filter by developer ID' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by status' })
   @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority' })
-  @ApiQuery({ name: 'search', required: false, description: 'Search in cover letter and motivation' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number', type: Number })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page', type: Number })
   @ApiQuery({ name: 'sortBy', required: false, description: 'Sort field' })
@@ -153,7 +223,7 @@ export class VolunteerApplicationController {
   @ApiResponse({ status: 404, description: 'Job not found' })
   async findByJobId(
     @Param('jobId') jobId: string,
-    @Query() query: QueryApplicationDto,
+    @Query() query: QueryJobApplicationDto,
     @Request() req: any
   ) {
     return this.volunteerApplicationService.findByJobId(jobId, query, req.user.userId, req.user.role);
@@ -185,14 +255,14 @@ export class VolunteerApplicationController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async findByDeveloperId(
     @Param('developerId') developerId: string,
-    @Query() query: QueryApplicationDto,
+    @Query() query: QueryDeveloperApplicationDto,
     @Request() req: any
   ) {
     return this.volunteerApplicationService.findByDeveloperId(developerId, query, req.user.userId, req.user.role);
   }
 
   @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
-  @Throttle({ default: { limit: 60, ttl: 60000 } }) // 60 requests per minute
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Roles(UserRole.ADMIN, UserRole.CLIENT, UserRole.DEVELOPER)
   @Get(':id')
   @ApiBearerAuth('JWT-auth')
@@ -212,7 +282,7 @@ export class VolunteerApplicationController {
   }
 
   @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
-  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 updates per minute
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Roles(UserRole.ADMIN, UserRole.CLIENT, UserRole.DEVELOPER)
   @Patch(':id')
   @ApiBearerAuth('JWT-auth')
@@ -234,7 +304,7 @@ export class VolunteerApplicationController {
   }
 
   @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
-  @Throttle({ default: { limit: 20, ttl: 60000 } }) // 20 status updates per minute
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Roles(UserRole.ADMIN, UserRole.CLIENT)
   @Patch(':id/status')
   @ApiBearerAuth('JWT-auth')
@@ -256,7 +326,7 @@ export class VolunteerApplicationController {
   }
 
   @UseGuards(AuthGuardWithRoles, ThrottlerGuard)
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 deletions per minute
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Roles(UserRole.ADMIN, UserRole.CLIENT, UserRole.DEVELOPER)
   @Delete(':id')
   @ApiBearerAuth('JWT-auth')
