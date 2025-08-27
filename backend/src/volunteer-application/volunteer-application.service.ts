@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateApplicationDto, SkillDto, AvailabilityDto } from './dto/create-application.dto';
+import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { UpdateApplicationStatusDto } from './dto/update-application-status.dto';
-import { QueryApplicationDto } from './dto/query-application.dto';
+import { QueryApplicationDto, QueryDeveloperApplicationDto, QueryJobApplicationDto } from './dto/query-application.dto';
 import { ApplicationResponseDto } from './dto/application-response.dto';
 import { ApplicationStatus, ApplicationPriority, ApplicationEventType, UserRole } from '@prisma/client';
 import { Logger } from '@nestjs/common';
@@ -158,15 +158,6 @@ export class VolunteerApplicationService {
       };
     }
     // ADMIN can see all applications
-
-    // Search functionality
-    if (filters.search) {
-      where.OR = [
-        { coverLetter: { contains: filters.search, mode: 'insensitive' } },
-        { motivation: { contains: filters.search, mode: 'insensitive' } },
-        { relevantExperience: { contains: filters.search, mode: 'insensitive' } }
-      ];
-    }
 
     // Get total count
     const total = await this.prisma.application.count({ where });
@@ -484,7 +475,7 @@ export class VolunteerApplicationService {
   /**
    * Get applications by job ID
    */
-  async findByJobId(jobId: string, query: QueryApplicationDto, userId: string, userRole: string): Promise<{
+  async findByJobId(jobId: string, query: QueryJobApplicationDto, userId: string, userRole: string): Promise<{
     applications: ApplicationResponseDto[];
     total: number;
     page: number;
@@ -504,13 +495,64 @@ export class VolunteerApplicationService {
       throw new ForbiddenException('You can only view applications for your jobs');
     }
 
-    return this.findAll({ ...query, jobId }, userId, userRole);
+    const { page = 1, limit = 10, ...filters } = query;
+
+    // Build where clause based on user role and filters
+    const where: any = {
+      jobId: jobId // Always filter by the specific job
+    };
+
+    // Apply filters
+    if (filters.status) where.status = filters.status;
+    if (filters.priority) where.priority = filters.priority;
+
+    // Role-based filtering
+    if (userRole === UserRole.DEVELOPER) {
+      where.developerId = userId;
+    } else if (userRole === UserRole.CLIENT) {
+      where.job = {
+        clientId: userId
+      };
+    }
+    // ADMIN can see all applications
+
+    // Get total count
+    const total = await this.prisma.application.count({ where });
+
+    // Get applications with pagination (no sorting - default order by appliedAt desc)
+    const applications = await this.prisma.application.findMany({
+      where,
+      include: {
+        job: {
+          include: {
+            client: true
+          }
+        },
+        developer: {
+          include: {
+            profile: true
+          }
+        },
+        reviewer: true
+      },
+      orderBy: { appliedAt: 'desc' }, // Fixed default order without sort parameters
+      skip: (page - 1) * limit,
+      take: limit
+    });
+
+    return {
+      applications: applications.map(app => this.mapToResponseDto(app)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   /**
    * Get applications by developer ID
    */
-  async findByDeveloperId(developerId: string, query: QueryApplicationDto, userId: string, userRole: string): Promise<{
+  async findByDeveloperId(developerId: string, query: QueryDeveloperApplicationDto, userId: string, userRole: string): Promise<{
     applications: ApplicationResponseDto[];
     total: number;
     page: number;
@@ -522,7 +564,7 @@ export class VolunteerApplicationService {
       throw new ForbiddenException('You can only view your own applications');
     }
 
-    return this.findAll({ ...query, developerId }, userId, userRole);
+    return this.findAll(query, userId, userRole);
   }
 
   /**
@@ -661,68 +703,5 @@ export class VolunteerApplicationService {
     };
   }
 
-  /**
-   * Get developer's profile data for pre-filling application form
-   */
-  async getApplicationPrefillData(developerId: string): Promise<{
-    skills: SkillDto[];
-    availability: AvailabilityDto;
-    portfolio: string | null;
-    hourlyRate: number | null;
-    currency: string;
-    experience: number | null;
-  }> {
-    const developer = await this.prisma.user.findUnique({
-      where: { id: developerId },
-      include: {
-        profile: true
-      }
-    });
 
-    if (!developer) {
-      throw new NotFoundException('Developer not found');
-    }
-
-    if (developer.role !== UserRole.DEVELOPER) {
-      throw new ForbiddenException('Only developers can access application prefill data');
-    }
-
-    const profile = developer.profile;
-    if (!profile) {
-      throw new BadRequestException('Developer profile not found. Please complete your profile first.');
-    }
-
-    // Convert profile skills to SkillDto format
-    const skills: SkillDto[] = profile.skills ? profile.skills.map(skill => ({
-      skill,
-      level: 'EXPERT', // Default level, can be enhanced later
-      years: profile.experience || 0
-    })) : [];
-
-    return {
-      skills,
-      availability: profile.availability as AvailabilityDto || null,
-      portfolio: profile.portfolioLinks ? this.extractPortfolioUrl(profile.portfolioLinks) : null,
-      hourlyRate: profile.hourlyRate,
-      currency: profile.currency || 'USD',
-      experience: profile.experience
-    };
-  }
-
-  /**
-   * Extract portfolio URL from profile portfolio links
-   */
-  private extractPortfolioUrl(portfolioLinks: any): string | null {
-    if (!portfolioLinks || typeof portfolioLinks !== 'object') {
-      return null;
-    }
-
-    // Look for portfolio, website, or github links
-    const portfolioUrl = portfolioLinks.portfolio || 
-                        portfolioLinks.website || 
-                        portfolioLinks.github ||
-                        portfolioLinks.linkedin;
-
-    return portfolioUrl || null;
-  }
 }
