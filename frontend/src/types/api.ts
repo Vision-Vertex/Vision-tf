@@ -550,3 +550,228 @@ export interface SearchError {
   suggestions?: string[];
 }
 
+// Job-related Types - Essential types for job operations
+
+// Job Status Enums
+export enum JobStatus {
+  DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  ASSIGNED = 'ASSIGNED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
+  ON_HOLD = 'ON_HOLD',
+  UNDER_REVIEW = 'UNDER_REVIEW'
+}
+
+export enum JobPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+  CRITICAL = 'CRITICAL'
+}
+
+export enum ProjectType {
+  WEB_APP = 'WEB_APP',
+  MOBILE_APP = 'MOBILE_APP',
+  API = 'API',
+  DESIGN = 'DESIGN',
+  DATABASE = 'DATABASE',
+  DEVOPS = 'DEVOPS',
+  AI_ML = 'AI_ML',
+  BLOCKCHAIN = 'BLOCKCHAIN',
+  GAME_DEVELOPMENT = 'GAME_DEVELOPMENT',
+  ECOMMERCE = 'ECOMMERCE',
+  CMS = 'CMS',
+  INTEGRATION = 'INTEGRATION',
+  MIGRATION = 'MIGRATION',
+  MAINTENANCE = 'MAINTENANCE',
+  CONSULTING = 'CONSULTING',
+  RESEARCH = 'RESEARCH',
+  TESTING = 'TESTING',
+  DOCUMENTATION = 'DOCUMENTATION',
+  TRAINING = 'TRAINING',
+  OTHER = 'OTHER'
+}
+
+export enum WorkLocation {
+  REMOTE = 'REMOTE',
+  ONSITE = 'ONSITE',
+  HYBRID = 'HYBRID',
+  FLEXIBLE = 'FLEXIBLE'
+}
+
+export enum JobVisibility {
+  PUBLIC = 'PUBLIC',
+  PRIVATE = 'PRIVATE',
+  INVITE_ONLY = 'INVITE_ONLY',
+  INTERNAL = 'INTERNAL'
+}
+
+// Job Skill Types
+export interface JobSkill {
+  skill: string;
+  level: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT';
+  weight: number;
+}
+
+// Job Budget Types
+export interface JobBudget {
+  type: 'FIXED' | 'HOURLY' | 'MILESTONE';
+  amount: number;
+  currency: string;
+  milestones?: JobMilestone[];
+}
+
+export interface JobMilestone {
+  id: string;
+  title: string;
+  description: string;
+  amount: number;
+  dueDate: string;
+  completed: boolean;
+}
+
+// Core Job Type
+export interface Job {
+  id: string;
+  title: string;
+  description: string;
+  deadline: string;
+  clientId: string;
+  status: JobStatus;
+  requiredSkills?: JobSkill[];
+  preferredSkills?: JobSkill[];
+  budget?: JobBudget;
+  estimatedHours?: number;
+  priority: JobPriority;
+  projectType?: ProjectType;
+  location: WorkLocation;
+  attachments: string[];
+  tags: string[];
+  visibility: JobVisibility;
+  requirements?: string;
+  deliverables: string[];
+  constraints?: string;
+  riskFactors: string[];
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
+  approvedAt?: string;
+  onHoldAt?: string;
+  cancelledAt?: string;
+  completedAt?: string;
+  expiredAt?: string;
+  version: number;
+  lastModifiedBy?: string;
+  statusChangedAt?: string;
+  previousStatus?: JobStatus;
+  
+  // Relations
+  client?: UserProfile;
+}
+
+// Job Request Types
+export interface CreateJobRequest {
+  title: string;
+  description: string;
+  deadline: string;
+  requiredSkills?: JobSkill[];
+  preferredSkills?: JobSkill[];
+  budget?: JobBudget;
+  estimatedHours?: number;
+  priority?: JobPriority;
+  projectType?: ProjectType;
+  location?: WorkLocation;
+  attachments?: string[];
+  tags?: string[];
+  visibility?: JobVisibility;
+  requirements?: string;
+  deliverables?: string[];
+  constraints?: string;
+  riskFactors?: string[];
+}
+
+export interface UpdateJobRequest {
+  title?: string;
+  description?: string;
+  deadline?: string;
+  requiredSkills?: JobSkill[];
+  preferredSkills?: JobSkill[];
+  budget?: JobBudget;
+  estimatedHours?: number;
+  priority?: JobPriority;
+  projectType?: ProjectType;
+  location?: WorkLocation;
+  attachments?: string[];
+  tags?: string[];
+  visibility?: JobVisibility;
+  requirements?: string;
+  deliverables?: string[];
+  constraints?: string;
+  riskFactors?: string[];
+}
+
+// Job Query and Filter Types
+export interface JobQueryParams {
+  page?: number;
+  limit?: number;
+  status?: JobStatus[];
+  priority?: JobPriority[];
+  projectType?: ProjectType[];
+  location?: WorkLocation[];
+  visibility?: JobVisibility[];
+  clientId?: string;
+  assignedTo?: string;
+  tags?: string[];
+  skills?: string[];
+  minBudget?: number;
+  maxBudget?: number;
+  deadlineFrom?: string;
+  deadlineTo?: string;
+  createdAtFrom?: string;
+  createdAtTo?: string;
+  search?: string;
+  sortBy?: 'createdAt' | 'deadline' | 'priority' | 'budget' | 'title';
+  sortOrder?: 'asc' | 'desc';
+}
+
+// Job Response Types
+export interface JobsResponse {
+  jobs: Job[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+// Job Event Types - Based on actual backend implementation
+export interface JobEvent {
+  id: string;
+  jobId: string;
+  eventType: string;
+  userId: string;
+  eventData: any;
+  metadata: any;
+  timestamp: string;
+  user: {
+    id: string;
+    firstname: string;
+    lastname: string;
+    email: string;
+  };
+}
+
+export interface JobEventStats {
+  totalEvents: number;
+  eventsByType: Record<string, number>;
+  recentEvents: JobEvent[];
+}
+
