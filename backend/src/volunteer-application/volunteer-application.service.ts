@@ -145,7 +145,7 @@ export class VolunteerApplicationService {
       }
     );
 
-    this.logger.log(`Application created: ${application.id} for job: ${application.jobId} by developer: ${developerId}`);
+
 
     return this.mapToResponseDto(application);
   }
@@ -336,7 +336,7 @@ export class VolunteerApplicationService {
       }
     );
 
-    this.logger.log(`Application updated: ${id} by user: ${userId}`);
+
 
     return this.mapToResponseDto(updatedApplication);
   }
@@ -446,7 +446,7 @@ export class VolunteerApplicationService {
       }
     );
 
-    this.logger.log(`Application status updated: ${id} from ${application.status} to ${updateStatusDto.status} by user: ${userId}`);
+
 
     return this.mapToResponseDto(updatedApplication);
   }
@@ -490,7 +490,7 @@ export class VolunteerApplicationService {
       where: { id }
     });
 
-    this.logger.log(`Application deleted: ${id} by user: ${userId}`);
+
   }
 
   /**

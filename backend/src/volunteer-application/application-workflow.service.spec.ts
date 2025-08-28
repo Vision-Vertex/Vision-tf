@@ -401,15 +401,27 @@ describe('ApplicationWorkflowService', () => {
   describe('getApplicationMetrics', () => {
     it('should get metrics for developer', async () => {
       const mockApplicationsByStatus = [
-        { status: ApplicationStatus.PENDING, count: 5 },
-        { status: ApplicationStatus.APPROVED, count: 3 }
+        { status: ApplicationStatus.PENDING, _count: { status: 5 } },
+        { status: ApplicationStatus.APPROVED, _count: { status: 3 } }
+      ];
+
+      const mockTopReviewers = [
+        { reviewedBy: 'reviewer-1', _count: { reviewedBy: 3 } },
+        { reviewedBy: 'reviewer-2', _count: { reviewedBy: 2 } }
       ];
 
       mockPrismaService.application.count.mockResolvedValue(8);
-      mockPrismaService.$queryRaw.mockResolvedValue(mockApplicationsByStatus);
+      mockPrismaService.application.groupBy
+        .mockResolvedValueOnce(mockApplicationsByStatus)  // First call for status counts
+        .mockResolvedValueOnce(mockTopReviewers);         // Second call for top reviewers
       mockPrismaService.application.findMany.mockResolvedValue([
         { appliedAt: new Date('2025-01-01'), reviewedAt: new Date('2025-01-02') }
       ]);
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'reviewer-1',
+        firstname: 'John',
+        lastname: 'Doe'
+      });
 
       const result = await service.getApplicationMetrics('dev-1', UserRole.DEVELOPER);
 
@@ -421,12 +433,23 @@ describe('ApplicationWorkflowService', () => {
 
     it('should get metrics for client', async () => {
       const mockApplicationsByStatus = [
-        { status: ApplicationStatus.PENDING, count: 10 }
+        { status: ApplicationStatus.PENDING, _count: { status: 10 } }
+      ];
+
+      const mockTopReviewers = [
+        { reviewedBy: 'reviewer-1', _count: { reviewedBy: 5 } }
       ];
 
       mockPrismaService.application.count.mockResolvedValue(10);
-      mockPrismaService.$queryRaw.mockResolvedValue(mockApplicationsByStatus);
+      mockPrismaService.application.groupBy
+        .mockResolvedValueOnce(mockApplicationsByStatus)  // First call for status counts
+        .mockResolvedValueOnce(mockTopReviewers);         // Second call for top reviewers
       mockPrismaService.application.findMany.mockResolvedValue([]);
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'reviewer-1',
+        firstname: 'Jane',
+        lastname: 'Smith'
+      });
 
       const result = await service.getApplicationMetrics('client-1', UserRole.CLIENT);
 
