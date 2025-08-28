@@ -40,6 +40,7 @@ describe('ApplicationWorkflowService', () => {
     scoringConfig: {
       findFirst: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -102,6 +103,7 @@ describe('ApplicationWorkflowService', () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockDeveloper);
       mockPrismaService.job.count.mockResolvedValue(1);
       mockPrismaService.job.findMany.mockResolvedValue([mockJob]);
+      mockPrismaService.job.findUnique.mockResolvedValue(mockJob); // Mock for canDeveloperApply
       mockPrismaService.scoringConfig.findFirst.mockResolvedValue({
         weights: {
           requiredSkills: 0.4,
@@ -116,6 +118,9 @@ describe('ApplicationWorkflowService', () => {
           minRateBuffer: 0.5
         }
       });
+      
+      // Mock the canDeveloperApply method to return success
+      mockPrismaService.application.findUnique.mockResolvedValue(null);
 
       const filters: JobDiscoveryFiltersDto = {
         search: 'React',
@@ -335,7 +340,7 @@ describe('ApplicationWorkflowService', () => {
 
       expect(result.canApply).toBe(false);
       expect(result.rateCompatible).toBe(false);
-      expect(result.reasons.some(reason => reason.includes('exceeds maximum allowed rate'))).toBe(true);
+      expect(result.reasons.some(reason => reason.includes('Developer rate ($100/hr) exceeds maximum allowed rate ($36/hr)'))).toBe(true);
     });
   });
 
@@ -396,12 +401,12 @@ describe('ApplicationWorkflowService', () => {
   describe('getApplicationMetrics', () => {
     it('should get metrics for developer', async () => {
       const mockApplicationsByStatus = [
-        { status: ApplicationStatus.PENDING, _count: { status: 5 } },
-        { status: ApplicationStatus.APPROVED, _count: { status: 3 } }
+        { status: ApplicationStatus.PENDING, count: 5 },
+        { status: ApplicationStatus.APPROVED, count: 3 }
       ];
 
       mockPrismaService.application.count.mockResolvedValue(8);
-      mockPrismaService.application.groupBy.mockResolvedValue(mockApplicationsByStatus);
+      mockPrismaService.$queryRaw.mockResolvedValue(mockApplicationsByStatus);
       mockPrismaService.application.findMany.mockResolvedValue([
         { appliedAt: new Date('2025-01-01'), reviewedAt: new Date('2025-01-02') }
       ]);
@@ -416,11 +421,11 @@ describe('ApplicationWorkflowService', () => {
 
     it('should get metrics for client', async () => {
       const mockApplicationsByStatus = [
-        { status: ApplicationStatus.PENDING, _count: { status: 10 } }
+        { status: ApplicationStatus.PENDING, count: 10 }
       ];
 
       mockPrismaService.application.count.mockResolvedValue(10);
-      mockPrismaService.application.groupBy.mockResolvedValue(mockApplicationsByStatus);
+      mockPrismaService.$queryRaw.mockResolvedValue(mockApplicationsByStatus);
       mockPrismaService.application.findMany.mockResolvedValue([]);
 
       const result = await service.getApplicationMetrics('client-1', UserRole.CLIENT);

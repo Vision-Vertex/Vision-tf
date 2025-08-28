@@ -79,6 +79,18 @@ export class QuestionDto {
   question: string;
 }
 
+/**
+ * DTO for creating a volunteer application
+ * 
+ * Note: Many fields are auto-populated from the developer's profile if not provided:
+ * - skills (from profile.skills)
+ * - availability (from profile.availability)
+ * - proposedRate (from profile.hourlyRate)
+ * - proposedCurrency (from profile.currency)
+ * - portfolio (from profile.portfolioLinks)
+ * - relevantExperience (from profile.experience)
+ * - motivation (generated from profile.experience)
+ */
 export class CreateApplicationDto {
   @ApiProperty({ description: 'Job ID to apply for', example: 'uuid-job' })
   @IsUUID()
@@ -89,15 +101,23 @@ export class CreateApplicationDto {
   @MaxLength(5000)
   coverLetter: string;
 
-  @ApiPropertyOptional({ description: 'Motivation for applying - required for each application', example: 'I am passionate about this type of work...' })
+  @ApiPropertyOptional({ 
+    description: 'Motivation for applying (auto-populated from profile if not provided)', 
+    example: 'I am passionate about this type of work...' 
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(2000)
-  motivation: string;
+  motivation?: string;
 
-  @ApiPropertyOptional({ description: 'Relevant experience description - required for each application', example: 'I have 5 years of experience in...' })
+  @ApiPropertyOptional({ 
+    description: 'Relevant experience description (auto-populated from profile if not provided)', 
+    example: 'I have 5 years of experience in...' 
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(3000)
-  relevantExperience: string;
+  relevantExperience?: string;
 
   @ApiPropertyOptional({ 
     description: 'Proposed hourly rate (auto-populated from profile if not provided)', 
@@ -139,7 +159,6 @@ export class CreateApplicationDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SkillDto)
-  @ArrayMinSize(1)
   @ArrayMaxSize(20)
   skills?: SkillDto[];
 

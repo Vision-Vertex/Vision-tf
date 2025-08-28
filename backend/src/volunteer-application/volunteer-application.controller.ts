@@ -143,14 +143,17 @@ export class VolunteerApplicationController {
   @Roles(UserRole.DEVELOPER)
   @Post()
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create a new volunteer application' })
+  @ApiOperation({ 
+    summary: 'Create a new volunteer application',
+    description: 'Create a volunteer application. Most fields are auto-populated from your profile if not provided. Only jobId and coverLetter are required.'
+  })
   @ApiResponse({ 
     status: 201, 
-    description: 'Application created successfully',
+    description: 'Application created successfully with auto-populated data from profile',
     type: ApplicationResponseDto 
   })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 400, description: 'Bad request - Profile not found or invalid data' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Job not publicly available or already applied' })
   @ApiResponse({ status: 404, description: 'Job not found' })
   async create(
     @Body() createApplicationDto: CreateApplicationDto,

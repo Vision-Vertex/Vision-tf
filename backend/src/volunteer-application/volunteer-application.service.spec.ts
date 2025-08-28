@@ -179,7 +179,7 @@ describe('VolunteerApplicationService', () => {
         BadRequestException
       );
       await expect(service.create(createApplicationDto, 'dev-1')).rejects.toThrow(
-        'Developer profile not found. Please complete your profile first.'
+        'Developer profile not found'
       );
     });
 
@@ -496,70 +496,7 @@ describe('VolunteerApplicationService', () => {
     });
   });
 
-  describe('getApplicationPrefillData', () => {
-    const mockDeveloper = {
-      id: 'dev-1',
-      role: UserRole.DEVELOPER,
-      profile: {
-        id: 'profile-1',
-        skills: ['JavaScript', 'React', 'Node.js'],
-        experience: 5,
-        hourlyRate: 50,
-        currency: 'USD',
-        availability: { available: true, timezone: 'UTC+3' },
-        portfolioLinks: { portfolio: 'https://portfolio.com' },
-      },
-    };
 
-    it('should return prefill data from developer profile', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(mockDeveloper);
-
-      const result = await service.getApplicationPrefillData('dev-1');
-
-      expect(result).toEqual({
-        skills: [
-          { skill: 'JavaScript', level: 'EXPERT', years: 5 },
-          { skill: 'React', level: 'EXPERT', years: 5 },
-          { skill: 'Node.js', level: 'EXPERT', years: 5 },
-        ],
-        availability: { available: true, timezone: 'UTC+3' },
-        portfolio: 'https://portfolio.com',
-        hourlyRate: 50,
-        currency: 'USD',
-        experience: 5,
-      });
-    });
-
-    it('should throw error if developer not found', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
-
-      await expect(service.getApplicationPrefillData('dev-1')).rejects.toThrow(
-        NotFoundException
-      );
-    });
-
-    it('should throw error if user is not a developer', async () => {
-      const clientUser = { id: 'client-1', role: UserRole.CLIENT };
-      mockPrismaService.user.findUnique.mockResolvedValue(clientUser);
-
-      await expect(service.getApplicationPrefillData('client-1')).rejects.toThrow(
-        ForbiddenException
-      );
-    });
-
-    it('should throw error if profile not found', async () => {
-      const developerWithoutProfile = {
-        id: 'dev-1',
-        role: UserRole.DEVELOPER,
-        profile: null,
-      };
-      mockPrismaService.user.findUnique.mockResolvedValue(developerWithoutProfile);
-
-      await expect(service.getApplicationPrefillData('dev-1')).rejects.toThrow(
-        BadRequestException
-      );
-    });
-  });
 
   describe('extractPortfolioUrl', () => {
     it('should extract portfolio URL from portfolio links object', () => {

@@ -16,7 +16,7 @@ import { UserRole } from '@prisma/client';
 import { SuccessResponse, ErrorResponse } from '../common/dto/api-response.dto';
 
 @Controller({ path: 'scoring' })
-@ApiTags('Developer and Team Assignment')
+@ApiTags('Scorings for Job Application')
 @UseGuards(AuthGuardWithRoles)
 export class ScoringController {
   constructor(private readonly scoringService: ScoringService) {}
