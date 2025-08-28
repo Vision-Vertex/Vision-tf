@@ -222,6 +222,7 @@ export class ApplicationWorkflowService {
       const rateCompatible = this.checkRateCompatibilityWithConfig(job, profile, constraints);
       if (!rateCompatible.compatible) {
         reasons.push(rateCompatible.reason || 'Rate is outside job budget range');
+        canApply = false;
       }
       
       // Check availability match
@@ -250,6 +251,7 @@ export class ApplicationWorkflowService {
     
     if (!rateCompatible) {
       reasons.push('Rate is outside job budget range');
+      canApply = false;
     }
 
     // Generate recommendations

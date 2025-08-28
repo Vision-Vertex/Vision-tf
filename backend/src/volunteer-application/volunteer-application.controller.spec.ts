@@ -8,6 +8,10 @@ import { QueryApplicationDto } from './dto/query-application.dto';
 import { ApplicationStatus, ApplicationPriority, UserRole } from '@prisma/client';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { JwtService } from '@nestjs/jwt';
+import { SessionService } from '../auth/session.service';
+import { AuthGuardWithRoles } from '../auth/guards/auth.guard';
+import { ApplicationWorkflowService } from './application-workflow.service';
 
 describe('VolunteerApplicationController', () => {
   let controller: VolunteerApplicationController;
@@ -24,13 +28,35 @@ describe('VolunteerApplicationController', () => {
     findByDeveloperId: jest.fn(),
   };
 
+  const mockApplicationWorkflowService = {
+    discoverJobs: jest.fn(),
+    checkAvailability: jest.fn(),
+    processApplication: jest.fn(),
+    getApplicationMetrics: jest.fn(),
+  };
+
   const mockThrottlerGuard = {
     canActivate: jest.fn().mockReturnValue(true),
   };
 
+  const mockAuthGuard = {
+    canActivate: jest.fn().mockReturnValue(true),
+  };
+
+  const mockJwtService = {
+    sign: jest.fn(),
+    verify: jest.fn(),
+  };
+
+  const mockSessionService = {
+    validateSession: jest.fn(),
+    createSession: jest.fn(),
+    revokeSession: jest.fn(),
+  };
+
   const mockRequest = {
     user: {
-      id: 'dev-1',
+      userId: 'dev-1',
       role: UserRole.DEVELOPER,
       email: 'dev@example.com'
     }
@@ -50,10 +76,24 @@ describe('VolunteerApplicationController', () => {
           provide: VolunteerApplicationService,
           useValue: mockVolunteerApplicationService,
         },
+        {
+          provide: ApplicationWorkflowService,
+          useValue: mockApplicationWorkflowService,
+        },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
+        },
+        {
+          provide: SessionService,
+          useValue: mockSessionService,
+        },
       ],
     })
     .overrideGuard(ThrottlerGuard)
     .useValue(mockThrottlerGuard)
+    .overrideGuard(AuthGuardWithRoles)
+    .useValue(mockAuthGuard)
     .compile();
 
     controller = module.get<VolunteerApplicationController>(VolunteerApplicationController);

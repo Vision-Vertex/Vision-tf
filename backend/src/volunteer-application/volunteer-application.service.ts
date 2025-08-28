@@ -52,7 +52,8 @@ export class VolunteerApplicationService {
 
     // Validate that the developer exists and is a DEVELOPER
     const developer = await this.prisma.user.findUnique({
-      where: { id: developerId }
+      where: { id: developerId },
+      include: { profile: true }
     });
 
     if (!developer) {
@@ -63,6 +64,26 @@ export class VolunteerApplicationService {
       throw new ForbiddenException('Only developers can apply for jobs');
     }
 
+    if (!developer.profile) {
+      throw new BadRequestException('Developer profile not found');
+    }
+
+    // Auto-populate data from profile if not provided in the DTO
+    const profile = developer.profile;
+    const autoPopulatedData = {
+      skills: createApplicationDto.skills || (profile.skills ? profile.skills.map(skill => ({
+        skill,
+        level: 'EXPERT',
+        years: profile.experience || 0
+      })) : null),
+      availability: createApplicationDto.availability || profile.availability,
+      proposedRate: createApplicationDto.proposedRate || profile.hourlyRate,
+      proposedCurrency: createApplicationDto.proposedCurrency || profile.currency || 'USD',
+      portfolio: createApplicationDto.portfolio || this.extractPortfolioUrl(profile.portfolioLinks),
+      relevantExperience: createApplicationDto.relevantExperience || `${profile.experience || 0} years of experience`,
+      motivation: createApplicationDto.motivation || `Passionate developer with ${profile.experience || 0} years of experience`
+    };
+
     // Create the application
     const application = await this.prisma.application.create({
       data: {
@@ -72,15 +93,15 @@ export class VolunteerApplicationService {
         priority: createApplicationDto.priority || ApplicationPriority.MEDIUM,
         appliedAt: new Date(),
         coverLetter: createApplicationDto.coverLetter,
-        proposedRate: createApplicationDto.proposedRate,
-        proposedCurrency: createApplicationDto.proposedCurrency,
+        proposedRate: autoPopulatedData.proposedRate,
+        proposedCurrency: autoPopulatedData.proposedCurrency,
         estimatedHours: createApplicationDto.estimatedHours,
-        availability: createApplicationDto.availability ? JSON.parse(JSON.stringify(createApplicationDto.availability)) : null,
-        skills: createApplicationDto.skills ? JSON.parse(JSON.stringify(createApplicationDto.skills)) : null,
-        portfolio: createApplicationDto.portfolio,
+        availability: autoPopulatedData.availability ? JSON.parse(JSON.stringify(autoPopulatedData.availability)) : null,
+        skills: autoPopulatedData.skills ? JSON.parse(JSON.stringify(autoPopulatedData.skills)) : null,
+        portfolio: autoPopulatedData.portfolio,
         references: createApplicationDto.references ? JSON.parse(JSON.stringify(createApplicationDto.references)) : null,
-        motivation: createApplicationDto.motivation,
-        relevantExperience: createApplicationDto.relevantExperience,
+        motivation: autoPopulatedData.motivation,
+        relevantExperience: autoPopulatedData.relevantExperience,
         questions: createApplicationDto.questions ? JSON.parse(JSON.stringify(createApplicationDto.questions)) : null,
         attachments: createApplicationDto.attachments
       },
@@ -703,5 +724,32 @@ export class VolunteerApplicationService {
     };
   }
 
+  /**
+   * Extract portfolio URL from portfolio links
+   */
+  private extractPortfolioUrl(portfolioLinks: any): string | null {
+    if (!portfolioLinks || typeof portfolioLinks !== 'object') {
+      return null;
+    }
+
+    // Try to get portfolio link first, then github
+    if (portfolioLinks.portfolio) {
+      return portfolioLinks.portfolio;
+    }
+
+    if (portfolioLinks.github) {
+      return portfolioLinks.github;
+    }
+
+    // If it's an array, take the first valid URL
+    if (Array.isArray(portfolioLinks)) {
+      const firstLink = portfolioLinks.find(link => 
+        link && typeof link === 'string' && link.startsWith('http')
+      );
+      return firstLink || null;
+    }
+
+    return null;
+  }
 
 }
