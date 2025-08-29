@@ -1035,3 +1035,131 @@ export interface SkillGapAnalysis {
   }>;
 }
 
+// Job Search Types - Based on backend DTOs
+export interface JobSkillFilter {
+  skill?: string;
+  level?: 'BEGINNER' | 'INTERMEDIATE' | 'EXPERT';
+  minWeight?: number;
+}
+
+export interface JobBudgetFilter {
+  type?: 'FIXED' | 'HOURLY' | 'MILESTONE';
+  minAmount?: number;
+  maxAmount?: number;
+  currency?: string;
+}
+
+export interface JobSearchQuery {
+  query?: string;
+  status?: string[];
+  priority?: string[];
+  projectType?: string[];
+  location?: string[];
+  budget?: JobBudgetFilter;
+  requiredSkills?: JobSkillFilter[];
+  tags?: string[];
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface JobSearchResult {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  projectType: string;
+  location: string;
+  budget: {
+    type: string;
+    amount: number;
+    currency: string;
+  };
+  requiredSkills: Array<{
+    skill: string;
+    level: string;
+    weight: number;
+  }>;
+  tags: string[];
+  client: {
+    id: string;
+    name: string;
+    rating?: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+  deadline?: string;
+  estimatedDuration?: string;
+  isUrgent: boolean;
+  isRemote: boolean;
+  hasNDA: boolean;
+  hasContract: boolean;
+}
+
+export interface JobSearchResponse {
+  results: JobSearchResult[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  query: string;
+  filters: Record<string, any>;
+  executionTime: number;
+}
+
+export interface JobSearchSuggestions {
+  suggestions: Array<{
+    type: 'skill' | 'tag' | 'title' | 'location';
+    value: string;
+    count: number;
+  }>;
+  query: string;
+  total: number;
+}
+
+export interface JobSearchFilters {
+  statuses: string[];
+  priorities: string[];
+  projectTypes: string[];
+  locations: string[];
+  commonSkills: string[];
+  commonTags: string[];
+}
+
+export interface JobSearchHistoryItem {
+  id: string;
+  query: string;
+  filters: Partial<JobSearchQuery>;
+  resultsCount: number;
+  timestamp: string;
+}
+
+export interface SavedJobSearch {
+  id: string;
+  name: string;
+  query: string;
+  filters: Partial<JobSearchQuery>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobSearchPreferences {
+  defaultLimit: number;
+  defaultSortBy: string;
+  defaultSortOrder: 'asc' | 'desc';
+  enableNotifications: boolean;
+  saveSearchHistory: boolean;
+  autoSaveSearches: boolean;
+  preferredFilters: Partial<JobSearchQuery>;
+}
+
+export interface JobSearchError {
+  type: 'validation' | 'unauthorized' | 'rate_limit' | 'server' | 'network';
+  message: string;
+  code: string;
+  suggestions?: string[];
+  retryAfter?: number;
+}
+
