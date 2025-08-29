@@ -775,3 +775,263 @@ export interface JobEventStats {
   recentEvents: JobEvent[];
 }
 
+// ============================================================================
+// SKILLS TYPES
+// ============================================================================
+
+export interface Skill {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  level?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+  popularity?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSkillRequest {
+  name: string;
+  description?: string;
+  category?: string;
+  level?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+}
+
+export interface UpdateSkillRequest {
+  name?: string;
+  description?: string;
+  category?: string;
+  level?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT';
+}
+
+export interface ExtractSkillsRequest {
+  jobDescription: string;
+  maxSkills?: number;
+}
+
+export interface ExtractSkillsResponse {
+  skills: string[];
+  confidence: number;
+}
+
+export interface SkillSearchRequest {
+  query: string;
+  limit?: number;
+  category?: string;
+}
+
+export interface SkillSuggestionsRequest {
+  projectType: string;
+  limit?: number;
+}
+
+export interface ValidateSkillsRequest {
+  skills: string[];
+  jobId?: string;
+}
+
+export interface ValidateSkillsResponse {
+  valid: boolean;
+  errors: string[];
+  suggestions: string[];
+}
+
+export interface ValidationRule {
+  id: string;
+  name: string;
+  description: string;
+  rule: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+  isActive: boolean;
+}
+
+// ============================================================================
+// JOB SKILLS TYPES
+// ============================================================================
+
+export interface JobSkill {
+  id: string;
+  jobId: string;
+  skillName: string;
+  skillLevel: 'REQUIRED' | 'PREFERRED' | 'NICE_TO_HAVE';
+  importance: number; // 1-10
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobSkillsSummary {
+  jobId: string;
+  totalSkills: number;
+  requiredSkills: number;
+  preferredSkills: number;
+  niceToHaveSkills: number;
+  averageImportance: number;
+  skills: JobSkill[];
+}
+
+export interface UpdateJobSkillsRequest {
+  skills: Array<{
+    skillName: string;
+    skillLevel: 'REQUIRED' | 'PREFERRED' | 'NICE_TO_HAVE';
+    importance: number;
+  }>;
+}
+
+export interface AddJobSkillsRequest {
+  skills: Array<{
+    skillName: string;
+    skillLevel: 'REQUIRED' | 'PREFERRED' | 'NICE_TO_HAVE';
+    importance: number;
+  }>;
+}
+
+export interface RemoveJobSkillsRequest {
+  skillNames: string[];
+}
+
+export interface SkillStatistics {
+  skillName: string;
+  totalJobs: number;
+  requiredCount: number;
+  preferredCount: number;
+  niceToHaveCount: number;
+  averageImportance: number;
+  popularity: number;
+}
+
+export interface ValidateJobSkillsFormatRequest {
+  skills: Array<{
+    skillName: string;
+    skillLevel: 'REQUIRED' | 'PREFERRED' | 'NICE_TO_HAVE';
+    importance: number;
+  }>;
+}
+
+export interface ValidateJobSkillsFormatResponse {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+// ============================================================================
+// MATCHING TYPES
+// ============================================================================
+
+export interface MatchingConfig {
+  algorithm: string;
+  weights: {
+    skillMatch: number;
+    experience: number;
+    location: number;
+    availability: number;
+    rating: number;
+  };
+  thresholds: {
+    minimumScore: number;
+    preferredScore: number;
+  };
+  isActive: boolean;
+}
+
+export interface UpdateMatchingConfigRequest {
+  algorithm?: string;
+  weights?: {
+    skillMatch?: number;
+    experience?: number;
+    location?: number;
+    availability?: number;
+    rating?: number;
+  };
+  thresholds?: {
+    minimumScore?: number;
+    preferredScore?: number;
+  };
+  isActive?: boolean;
+}
+
+export interface DeveloperMatch {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string;
+  score: number;
+  skillMatches: Array<{
+    skillName: string;
+    matchLevel: 'EXACT' | 'PARTIAL' | 'NONE';
+    userLevel: string;
+    requiredLevel: string;
+    importance: number;
+  }>;
+  experience: number;
+  location: string;
+  availability: string;
+  rating: number;
+  hourlyRate: number;
+}
+
+export interface AdvancedSearchRequest {
+  skills?: string[];
+  experience?: {
+    min?: number;
+    max?: number;
+  };
+  location?: string;
+  availability?: string;
+  hourlyRate?: {
+    min?: number;
+    max?: number;
+  };
+  rating?: {
+    min?: number;
+  };
+  limit?: number;
+  offset?: number;
+}
+
+export interface JobMatch {
+  jobId: string;
+  title: string;
+  description: string;
+  clientName: string;
+  score: number;
+  skillMatches: Array<{
+    skillName: string;
+    matchLevel: 'EXACT' | 'PARTIAL' | 'NONE';
+    userLevel: string;
+    requiredLevel: string;
+    importance: number;
+  }>;
+  budget: {
+    min: number;
+    max: number;
+  };
+  deadline: string;
+  location: string;
+  projectType: string;
+  status: string;
+}
+
+export interface SkillGapAnalysis {
+  jobId: string;
+  userId: string;
+  overallScore: number;
+  missingSkills: Array<{
+    skillName: string;
+    importance: number;
+    userLevel?: string;
+    requiredLevel: string;
+  }>;
+  matchingSkills: Array<{
+    skillName: string;
+    userLevel: string;
+    requiredLevel: string;
+    matchScore: number;
+  }>;
+  recommendations: Array<{
+    skillName: string;
+    reason: string;
+    priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  }>;
+}
+

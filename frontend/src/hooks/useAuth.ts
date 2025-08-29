@@ -57,7 +57,7 @@ export const useAuth = () => {
     logout: logoutStore,
     refreshTokens: refreshTokenStore,
     clearError,
-    setLoading,
+    setLoading, 
     setError,
   } = useAuthStore();
 

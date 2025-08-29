@@ -112,8 +112,8 @@ export const useSessions = () => {
       return 'Local';
     }
     
-    // For demo purposes, return a placeholder
-    return 'Unknown Location';
+    // Return a more descriptive message for unknown locations
+    return 'Location unavailable';
   }, []);
 
   // Format last activity date

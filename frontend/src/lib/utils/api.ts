@@ -193,7 +193,8 @@ export function createApiError(message: string, statusCode: number = 500, code?:
  */
 export function isValidApiResponse(response: any): response is ApiResponse<any> {
   return (
-    response &&
+    response !== null &&
+    response !== undefined &&
     typeof response.success === 'boolean' &&
     typeof response.statusCode === 'number' &&
     typeof response.message === 'string' &&
