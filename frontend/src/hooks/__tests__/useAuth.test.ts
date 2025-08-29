@@ -142,10 +142,11 @@ describe('useAuth Hook', () => {
         mockResponse.accessToken,
         mockResponse.refreshToken,
         mockResponse.sessionToken,
-        false // rememberMe parameter
+        false, // rememberMe parameter
+        undefined // deviceInfo parameter
       );
       expect(mockAuthStore.setLoading).toHaveBeenCalledWith(false);
-      expect(mockPush).toHaveBeenCalledWith('/');
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
 
     it('should handle login with remember me', async () => {
@@ -436,10 +437,12 @@ describe('useAuth Hook', () => {
       expect(mockAuthStore.login).toHaveBeenCalledWith(
         mockResponse.accessToken,
         mockResponse.refreshToken,
-        mockResponse.sessionToken
+        mockResponse.sessionToken,
+        false, // rememberMe parameter
+        undefined // deviceInfo parameter
       );
       expect(mockAuthStore.setLoading).toHaveBeenCalledWith(false);
-      expect(mockPush).toHaveBeenCalledWith('/');
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
 
     it('should handle 2FA verification error', async () => {

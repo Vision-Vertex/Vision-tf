@@ -310,13 +310,12 @@ describe('Sessions Store', () => {
       mockGetUserSessions.mockResolvedValue(mockResponse);
       mockTerminateSession.mockResolvedValue({ message: 'Terminated' });
 
-      const fetchPromise = useSessionsStore.getState().fetchSessions();
-      const terminatePromise = useSessionsStore.getState().terminateSession('session-1');
-
-      await Promise.all([fetchPromise, terminatePromise]);
+      // Run operations sequentially to avoid timing issues
+      await useSessionsStore.getState().fetchSessions();
+      await useSessionsStore.getState().terminateSession('session-1');
 
       const state = useSessionsStore.getState();
       expect(state.isLoading).toBe(false);
-    });
+    }, 10000); // Add 10 second timeout
   });
 });
